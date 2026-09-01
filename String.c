@@ -18,16 +18,20 @@ typedef enum {
 	GROWTH = 2,
 }Sizes;
 
+// 默认构造器
 string newString() {
+	// 为str实例申请内存
 	string str = (string)malloc(sizeof(String));
 	if (!str)return NULL;
 
+	// 为str的buffer成员申请内存
 	str->buffer=(char*)calloc(INITIAL_STRING_SIZE, sizeof(char));
 	if (!str->buffer) {
 		str->buffer = NULL;
 		str->status = NULLBUFFER;
 		str->cachedLen = 0;
 	}
+	// 若为buffer申请内存成功则更新状态并将缓存长度设置为-1
 	else {
 		str->cachedLen = (size_t)-1;
 		str->status = AVAILABLE;
@@ -36,6 +40,7 @@ string newString() {
 	return str;
 }
 
+// 通过char*构造string
 string newStringFrom(const char* const content) {
 	bool isNull = content == NULL;
 
@@ -49,13 +54,16 @@ string newStringFrom(const char* const content) {
 		return str;
 	}
 
+	// 获取char*长度
 	size_t len = strlen(content);
+	// 为buffer申请内存
 	str->buffer = (char*)malloc(len + 1);
 	if (!str->buffer) {
 		str->buffer = NULL;
 		str->status = NULLBUFFER;
 		str->cachedLen = 0;
 	}
+	// 若为buffer申请内存成功则更新状态并将长度设置为已知的len
 	else {
 		memcpy(str->buffer, content, len + 1);
 		str->cachedLen = len;
@@ -65,6 +73,7 @@ string newStringFrom(const char* const content) {
 	return str;
 }
 
+// 析构，可传NULL
 void deleteString(string str) {
 	if (!str)return;
 	if (str->buffer) {
@@ -74,34 +83,44 @@ void deleteString(string str) {
 	free(str);
 }
 
+// 状态返回器，在使用实例前一定调用此函数检查实例状态是否可用，使用方法：if(!getStringStatus(str)){ // 该实例状态正常}
 int getStringStatus(const String* const str) {
 	if (!str)return NULLSTRING;
 	return str->status;
 }
 
+// 获取实例长度
 size_t getStringLength(const String* const str) {
 	if (!str || !str->buffer)return 0;
 
+	// 将实例转化为可变
 	string mutableStr = (string)str;
 
+	// 如果缓存长度为-1，则表明缓存长度不存在，则重新获取长度
 	if (mutableStr->cachedLen == (size_t)-1) {
 		mutableStr->cachedLen = strlen(str->buffer);
 	}
+	// 如果缓存长度不为-1，则缓存长度存在，返回缓存长度
 	return mutableStr->cachedLen;
 }
 
+// 获取实例内容转化为char*
 const char* getStringContent(const String* const str) {
 	if (!str || !str->buffer)return NULL;
 	return str->buffer;
 }
 
+// 设置实例内容（慎用！！！）
 bool setStringContent(String* const str, const char* const content) {
 	if (!str)return false;
 
 	str->cachedLen = (size_t)-1;
 
+	// 如果内容为空，则视为清空内容
 	if (!content) {
+		// 如果buffer不为NULL，则先释放内存
 		if (str->buffer)free(str->buffer);
+		// 为buffer申请1长度
 		str->buffer = (char*)malloc(1);
 		if (str->buffer) {
 			str->buffer[0] = '\0';
@@ -111,9 +130,11 @@ bool setStringContent(String* const str, const char* const content) {
 			str->buffer = NULL;
 			str->status = NULLBUFFER;
 		}
+		// 无论如何，buffer确实已经清空
 		return true;
 	}
 
+	// 将内容拷贝过来
 	size_t len = strlen(content);
 	char* newBuffer = (char*)malloc(len + 1);
 	if (!newBuffer)return false;
@@ -152,6 +173,9 @@ const char* stringStatusToArray(const int status) {
 	}
 	case FAILEDTOREALLOC: {
 		return "failed to realloc";
+	}
+	case FAILEDTOALLOC: {
+		return "failed to alloc";
 	}
 
 	case NULLINT: {
@@ -225,6 +249,24 @@ const char* stringStatusToArray(const int status) {
 	}
 	case SUCCEEDTOTRUNCATESTRING: {
 		return "succeed to truncate the string";
+	}
+	case SUCCEEDTOFINDCH: {
+		return "succeed to find the char you want";
+	}
+	case WITHOUTCH: {
+		return "there is no char you want here";
+	}
+	case INVALIDSTART: {
+		return "invalid start index";
+	}
+	case INVALIDEND: {
+		return "invalid end index";
+	}
+	case INVALIDIDX: {
+		return "invalid index";
+	}
+	case INVALIDREPLACEMENT: {
+		return "what you want to replace with is invalid";
 	}
 	default: {
 		return "Unknown status";
@@ -475,6 +517,411 @@ int charAt(const String* const str, size_t index, char* result) {
 	*result = str->buffer[index];
 
 	return SUCCESSFULIDX;
+}
+
+int indexOfFront(const String* const str, char ch, size_t* result) {
+	if (!result)return NULLINT;
+	if (!str)return NULLSTRING;
+	if (!str->buffer)return NULLBUFFER;
+
+	const char* found = strchr(str->buffer, ch);
+	if (found) {
+		*result = (size_t)(found - str->buffer);
+		return SUCCEEDTOFINDCH;
+	}
+	return WITHOUTCH;
+}
+
+int indexOfBack(const String* const str, char ch, size_t* result){
+	if (!result)return NULLINT;
+	if (!str)return NULLSTRING;
+	if (!str->buffer)return NULLBUFFER;
+	for (ptrdiff_t i = (ptrdiff_t)getStringLength(str) - 1; i >= 0 ; --i) {
+		if (str->buffer[i] == ch) {
+			*result = (size_t)i;
+			return SUCCEEDTOFINDCH;
+		}
+	}
+	return WITHOUTCH;
+}
+
+string subStringInLengthFront(const String* const str, size_t start, size_t length) {
+	if (!str)return NULL;
+	if (!str->buffer)return newStringFrom(NULL);
+	if (str->buffer[0] == '\0' || !length)return newStringFrom("");
+
+	size_t len = getStringLength(str);
+	if (start >= len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDSTART;
+		return temp;
+	}
+
+	if (length - 1 >= len - start)length = len - start;
+	
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, str->buffer + start, length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string subStringInLengthBack(const String* const str, size_t end, size_t length) {
+	if (!str)return NULL;
+	if (!str->buffer)return newStringFrom(NULL);
+	if (str->buffer[0] == '\0' || !length)return newStringFrom("");
+
+	size_t len = getStringLength(str);
+	if (end >= len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDEND;
+		return temp;
+	}
+
+	if ((ptrdiff_t)end + 1 - (ptrdiff_t)length < 0)length = end + 1;
+
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, str->buffer + (end - length + 1), length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string subStringInRange(const String* const str, size_t start, size_t end) {
+	if (!str)return NULL;
+	if (!str->buffer)return newStringFrom(NULL);
+	if (str->buffer[0] == '\0' || start == end)return newStringFrom("");
+
+	if (start > end) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDIDX;
+		return temp;
+	}
+
+	size_t len = getStringLength(str);
+	if (start >= len || end > len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = IDXOUTBOUNDS;
+		return temp;
+	}
+
+	size_t length = end - start;
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, str->buffer + start, length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string subStringInLengthFrontFrom(const char* const ch, size_t start, size_t length) {
+	if (!ch)return newStringFrom(NULL);
+	if (ch[0] == '\0' || !length)return newStringFrom("");
+
+	size_t len = strlen(ch);
+	if (start >= len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDSTART;
+		return temp;
+	}
+
+	if (length - 1 >= len - start)length = len - start;
+
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, ch + start, length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string subStringInLengthBackFrom(const char* const ch, size_t end, size_t length) {
+	if (!ch)return newStringFrom(NULL);
+	if (ch[0] == '\0' || !length)return newStringFrom("");
+
+	size_t len = strlen(ch);
+	if (end >= len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDEND;
+		return temp;
+	}
+
+	if ((ptrdiff_t)end + 1 - (ptrdiff_t)length < 0)length = end + 1;
+
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, ch + (end - length + 1), length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string subStringInRangeFrom(const char* const ch, size_t start, size_t end) {
+	if (!ch)return newStringFrom(NULL);
+	if (ch[0] == '\0' || start == end)return newStringFrom("");
+
+	if (start > end) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = INVALIDIDX;
+		return temp;
+	}
+
+	size_t len = strlen(ch);
+	if (start >= len || end > len) {
+		string temp = newStringFrom("");
+		if (temp)temp->status = IDXOUTBOUNDS;
+		return temp;
+	}
+
+	size_t length = end - start;
+	string temp = (string)malloc(sizeof(String));
+	if (!temp)return NULL;
+	temp->buffer = (char*)malloc(length + 1);
+	if (!temp->buffer) {
+		temp->status = NULLBUFFER;
+		temp->cachedLen = 0;
+		return temp;
+	}
+	memcpy(temp->buffer, ch + start, length);
+	temp->buffer[length] = '\0';
+	temp->status = AVAILABLE;
+	temp->cachedLen = length;
+	return temp;
+}
+
+string replaceFirst(const String* const str, const char* const target, const String* const replacement) {
+	if (!str)return NULL;
+	if (!replacement) {
+		string err = newStringFrom(getStringContent(str));
+		if (err)err->status = INVALIDREPLACEMENT;
+		return err;
+	}
+	return replaceFirstFrom(str, target, replacement->buffer);
+}
+
+string replaceAll(const String* const str, const char* const target, const String* const replacement) {
+	if (!str)return NULL;
+	if (!replacement) {
+		string err = newStringFrom(getStringContent(str));
+		if (err)err->status = INVALIDREPLACEMENT;
+		return err;
+	}
+	return replaceAllFrom(str, target, replacement->buffer);
+}
+
+string replaceFirstFrom(const String* const str, const char* const target, const char* const replacement) {
+	if (!str)return NULL;
+
+	// 如果都为NULL
+	if (!str->buffer && !target)return newStringFrom(replacement);
+	// 如果只有buffer或target为NULL
+	if (!str->buffer || !target)return newStringFrom(getStringContent(str));
+
+	if (str->buffer[0] == '\0' && target[0] == '\0')return newStringFrom(replacement);
+	if (str->buffer[0] == '\0' || target[0] == '\0')return newStringFrom(getStringContent(str));
+
+	if (!replacement) {
+		string err = newStringFrom(getStringContent(str));
+		if (err)err->status = INVALIDREPLACEMENT;
+		return err;
+	}
+
+	char* indexChar = strstr(str->buffer, target);
+	if (!indexChar)return newStringFrom(getStringContent(str));
+	size_t index = (size_t)(indexChar - str->buffer);
+
+	size_t targetLen = strlen(target);
+	size_t replaceLen = strlen(replacement);
+	size_t strLen = getStringLength(str);
+
+	if (targetLen == replaceLen) {
+		string tempStr = newStringFrom(getStringContent(str));
+		if (getStringStatus(tempStr))return tempStr;
+		memcpy(tempStr->buffer + index, replacement, replaceLen);
+		return tempStr;
+	}
+
+	string tempStr = newString();
+	if (getStringStatus(tempStr))return tempStr;
+
+	size_t preLen = index;
+	size_t sufLen = strLen - preLen - targetLen;
+	size_t newLen = preLen + replaceLen + sufLen;
+
+	char* newBuffer = (char*)malloc(newLen + 1);
+	if (!newBuffer) {
+		deleteString(tempStr);
+		return newStringFrom(NULL);
+	}
+
+	char* ptr = newBuffer;
+
+	memcpy(ptr, str->buffer, preLen);
+	ptr += preLen;
+
+	memcpy(ptr, replacement, replaceLen);
+	ptr += replaceLen;
+
+	memcpy(ptr, indexChar + targetLen, sufLen + 1);
+
+	if (!setStringContent(tempStr, newBuffer)) {
+		free(newBuffer);
+		deleteString(tempStr);
+		return newStringFrom(NULL);
+	}
+
+	free(newBuffer);
+	return tempStr;
+}
+
+string replaceAllFrom(const String* const str, const char* const target, const char* const replacement) {
+	if (!str)return NULL;
+	if (!str->buffer && !target)return newStringFrom(replacement);
+	if (!str->buffer || !target)return newStringFrom(getStringContent(str));
+	if (str->buffer[0] == '\0' && target[0] == '\0')return newStringFrom(replacement);
+	if (str->buffer[0] == '\0' || target[0] == '\0')return newStringFrom(getStringContent(str));
+	if (!replacement) {
+		string err = newStringFrom(getStringContent(str));
+		if (err)err->status = INVALIDREPLACEMENT;
+		return err;
+	}
+
+	char* src = str->buffer;
+	size_t strLen = getStringLength(str);
+	size_t targetLen = strlen(target);
+	size_t replaceLen = strlen(replacement);
+
+	size_t* position = NULL;
+	size_t capacity = 0;
+	size_t count = 0;
+	char* scan = src;
+
+	while ((scan = strstr(scan, target)) != NULL) {
+		if (count >= capacity) {
+			capacity += 16;
+			size_t* newPos = (size_t*)realloc(position, capacity * sizeof(size_t));
+			if (!newPos) {
+				free(position);
+				return newStringFrom(NULL);
+			}
+			position = newPos;
+		}
+		position[count++] = (size_t)(scan - src);
+		scan += targetLen;
+	}
+
+	if (!count) {
+		free(position);
+		return newStringFrom(src);
+	}
+
+	size_t newLen = strLen + count * (replaceLen - targetLen);
+	char* newBuffer = (char*)malloc(newLen + 1);
+	if (!newBuffer) {
+		free(position);
+		return newStringFrom(NULL);
+	}
+
+	char* ptr = newBuffer;
+	size_t lastPos = 0;
+
+	for (size_t i = 0; i < count; i++) {
+		size_t pos = position[i];
+
+		size_t copyLen = pos - lastPos;
+		memcpy(ptr, src + lastPos, copyLen);
+		ptr += copyLen;
+
+		memcpy(ptr, replacement, replaceLen);
+		ptr += replaceLen;
+
+		lastPos = pos + targetLen;
+	}
+
+	memcpy(ptr, src + lastPos, strLen - lastPos + 1);
+
+	free(position);
+
+	string result = (string)malloc(sizeof(String));
+	if (!result) {
+		free(newBuffer);
+		return NULL;
+	}
+	result->buffer = newBuffer;
+	result->status = AVAILABLE;
+	result->cachedLen = newLen;
+	return result;
+}
+
+bool startWith(const String* const str, const char* const prefix) {
+	if (!str || !str->buffer)return false;
+
+	if (!prefix || prefix[0] == '\0')return true;
+
+	size_t strLen = getStringLength(str);
+	size_t preLen = strlen(prefix);
+	if (strLen < preLen)return false;
+
+	return strncmp(str->buffer, prefix, preLen) == 0;
+}
+
+bool endWith(const String* const str, const char* const suffix) {
+	if (!str || !str->buffer)return false;
+
+	if (!suffix || suffix[0] == '\0')return true;
+
+	size_t strLen = getStringLength(str);
+	size_t sufLen = strlen(suffix);
+	if (strLen < sufLen)return false;
+
+	return strncmp(str->buffer + (strLen - sufLen), suffix, sufLen) == 0;
+}
+
+bool startWithString(const String* const str, const String* const prefix) {
+	if (!prefix)return true;
+	return startWith(str, prefix->buffer);
+}
+
+bool endWithString(const String* const str, const String* const suffix) {
+	if (!suffix)return true;
+	return endWith(str, suffix->buffer);
 }
 
 int changeAt(String* const str, size_t index, char ch) {
@@ -957,8 +1404,5 @@ string readLine() {
 
 /*
 * 待开发名单：
-* indexOf
-* subString
-* replace
-* start/endWith
+* 暂无
 */

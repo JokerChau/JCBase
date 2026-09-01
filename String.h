@@ -37,6 +37,38 @@ wheels string trim(const String* const str);
 
 wheels int charAt(const String* const str, size_t index, char* result);
 
+wheels int indexOfFront(const String* const str, char ch, size_t* result);
+
+wheels int indexOfBack(const String* const str, char ch, size_t* result);
+
+wheels string subStringInLengthFront(const String* const str, size_t start, size_t length);
+
+wheels string subStringInLengthBack(const String* const str, size_t end, size_t length);
+
+wheels string subStringInRange(const String* const str, size_t start, size_t end);
+
+wheels string subStringInLengthFrontFrom(const char* const ch, size_t start, size_t length);
+
+wheels string subStringInLengthBackFrom(const char* const ch, size_t end, size_t length);
+
+wheels string subStringInRangeFrom(const char* const ch, size_t start, size_t end);
+
+wheels string replaceFirst(const String* const str,const char* const target, const String* const replacement);
+
+wheels string replaceAll(const String* const str, const char* const target, const String* const replacement);
+
+wheels string replaceFirstFrom(const String* const str, const char* const target, const char* const replacement);
+
+wheels string replaceAllFrom(const String* const str, const char* const target, const char* const replacement);
+
+wheels bool startWith(const String* const str, const char* const prefix);
+
+wheels bool endWith(const String* const str, const char* const suffix);
+
+wheels bool startWithString(const String* const str, const String* const prefix);
+
+wheels bool endWithString(const String* const str, const String* const suffix);
+
 wheels int changeAt(String* const str, size_t index, char ch);
 
 wheels bool isEmpty(const String* const str);
