@@ -2,6 +2,9 @@
 
 #include "wheel_ex.h"
 #include <stddef.h>
+#include "ArrayListSrc.h"
+
+#define newArrayList(pointer) alCreate(sizeof(*(pointer)))
 
 typedef struct ArrayList ArrayList;
 
@@ -23,7 +26,7 @@ wheels int alShrinkToFit(ArrayList* const list);
 
 wheels int alGetAt(const ArrayList* const list, size_t index, void* ele);
 
-wheels int alSetAt(ArrayList* const list, size_t index, void* content);
+wheels int alSetAt(ArrayList* const list, size_t index, const void* const content);
 
 wheels int alPushBack(ArrayList* const list, const void* const content);
 
@@ -39,4 +42,4 @@ wheels int alRemoveAt(ArrayList* const list, size_t index);
 
 wheels int alClear(ArrayList* const list);
 
-wheels char* alStatusToArray(int status);
+wheels const char* alStatusToArray(int status);

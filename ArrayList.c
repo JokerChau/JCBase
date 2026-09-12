@@ -1,5 +1,4 @@
 #include "ArrayList.h"
-#include "resources.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,8 +13,23 @@ typedef struct ArrayList {
 static int alRealloc(ArrayList* list) {
 	if (list->alCount >= list->alMaxCount) {
 		// 设置临时容量，如果最大容量为0则设为4，且每次加4
-		size_t newCap = (list->alMaxCount == 0) ? 4 : list->alMaxCount * 2;
-		if (newCap > SIZE_MAX / list->typeSize)return REALLOCSIZEOUTBOUNDS;
+		size_t newCap;
+		size_t newMaxCap = SIZE_MAX / list->typeSize;
+		if (list->alMaxCount == 0) {
+			if (newMaxCap >= 4)newCap = 4;
+			else newCap = newMaxCap;
+		}
+		else if (list->alMaxCount >= newMaxCap) {
+			// 已经到达理论最大容量，无法再涨
+			return REALLOCSIZEOUTBOUNDS;
+		}
+		else if (list->alMaxCount > newMaxCap / 2) {
+			// 翻倍会超过 maxCapacity，直接拉到 maxCapacity
+			newCap = newMaxCap;
+		}
+		else {
+			newCap = list->alMaxCount * 2;
+		}
 		// 重分配一个数据指针，大小为临时容量*类型大小
 		void* newData = realloc(list->data, newCap * list->typeSize);
 		if (!newData)return REALLOCALFAIL;
@@ -116,6 +130,7 @@ int alShrinkToFit(ArrayList* const list) {
 	}
 
 	if (list->alMaxCount == list->alCount)return SUCCESSFULOP;
+	if (list->alCount > SIZE_MAX / list->typeSize) return REALLOCSIZEOUTBOUNDS;
 
 	void* newData = realloc(list->data, list->alCount * list->typeSize);
 	if (!newData)return REALLOCALFAIL;
@@ -138,7 +153,7 @@ int alGetAt(const ArrayList* const list, size_t index, void* ele) {
 	return SUCCESSFULOP;
 }
 
-int alSetAt(ArrayList* const list, size_t index, void* content) {
+int alSetAt(ArrayList* const list, size_t index, const void* const content) {
 	if (!list)return NULLAL;
 	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
 	if (!content)return NULLALELEMENT;
@@ -152,6 +167,7 @@ int alSetAt(ArrayList* const list, size_t index, void* content) {
 
 // 从后面补上单个元素
 int alPushBack(ArrayList* const list, const void* const content) {
+	if (!list)return NULLAL;
 	return alInsertAt(list, content, list->alCount);
 }
 
@@ -203,7 +219,7 @@ int alPopFront(ArrayList* const list) {
 int alRemoveAt(ArrayList* const list, size_t index) {
 	if (!list)return NULLAL;
 	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-
+	if (list->alCount == 0) return ALALREADYEMPTY;
 	if (index >= list->alCount)return ALIDXOUTBOUNDS;
 
 	if (index < list->alCount - 1) {
@@ -224,7 +240,7 @@ int alClear(ArrayList* const list) {
 	return SUCCESSFULOP;
 }
 
-char* alStatusToArray(int status) {
+const char* alStatusToArray(int status) {
 	switch (status) {
 	case NULLAL: {
 		return "null ArrayList*";
@@ -263,6 +279,9 @@ char* alStatusToArray(int status) {
 	}
 	case REALLOCSIZEOUTBOUNDS: {
 		return "the size is bigger than SIZE_MAX/max size of size_t";
+	}
+	default: {
+		return "unknown status";
 	}
 	}
 }
