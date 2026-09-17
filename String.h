@@ -3,6 +3,8 @@
 #include "wheel_ex.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include "StringSrc.h"
+#include "StringBuilder.h"
 
 typedef struct String String;
 
@@ -18,11 +20,9 @@ wheels int getStringStatus(const String* const str);
 
 wheels size_t getStringLength(const String* const str);
 
-wheels const char* getStringContent(const String* const str);
+wheels char* getStringContent(const String* const str);
 
-wheels bool setStringContent(String* const str, const char* const content);
-
-wheels const char* stringStatusToArray(const int status);
+wheels const char* stringStatusToCharArray(const int status);
 
 
 wheels string appendString(const String* const str1, const String* const str2);
@@ -31,9 +31,11 @@ wheels string appendStringFrom(const String* const str, const char* const conten
 
 wheels string reverseString(const String* const str);
 
-wheels string* splitString(const String* const str, char delimiter, int* count);
+wheels int splitString(const String* const str, char delimiter, string** outArray, size_t* count);
 
 wheels string trim(const String* const str);
+
+wheels string clone(const String* const str);
 
 wheels int charAt(const String* const str, size_t index, char* result);
 
@@ -69,8 +71,6 @@ wheels bool startWithString(const String* const str, const String* const prefix)
 
 wheels bool endWithString(const String* const str, const String* const suffix);
 
-wheels int changeAt(String* const str, size_t index, char ch);
-
 wheels bool isEmpty(const String* const str);
 
 wheels bool isBlank(const String* const str);
@@ -100,5 +100,4 @@ wheels string toLowerCase(const String* const str);
 
 wheels string toUpperCase(const String* const str);
 
-
-string readLine();
+wheels stringBuilder stringToSb(const String* const str);

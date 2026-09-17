@@ -1,6 +1,6 @@
 # JCBase Library
 
-一个轻量级、模块化的 C 语言基础工具库，提供动态字符串（String）、动态数组（ArrayList）、哈希表（HashMap）等常用数据结构，以及配套的输入、类型转换、字符串处理函数。
+一个轻量级、模块化的 C 语言基础工具库，提供不可变字符串（String）、可变字符串（StringBuilder）、动态数组（ArrayList）、哈希表（HashMap）等常用数据结构，以及String配套的输入（Scanner中的nextLine）、类型转换、字符串处理函数。
 
 **设计目标**：简洁、安全、易用，适合作为 C/C++ 项目的底层基础组件。
 
@@ -8,12 +8,18 @@
 
 ## 功能特性
 
-**动态字符串（String）**
+**不可变字符串（String）**
 
-- 自动内存管理，支持长度缓存（cachedLen）提升性能
+- 半自动内存管理，使用delete~~函数进行内存释放，带有长度结构体成员以提升性能
 - 丰富的操作：拼接、截取、分割、查找、替换、修剪、大小写转换等
 - 类型转换：安全转换为 int、long、long long、float、double
 - 状态码机制，每个函数返回明确的状态值
+- 注意：该字符串不可变，所以最好不要频繁进行拼接之类的操作
+
+**可变字符串（StringBuilder） **
+
+- 特性同String
+- 注意：该字符串可变，所以拼接等操作可以使用该字符串
 
 **动态数组（ArrayList）**
 
@@ -67,70 +73,174 @@
 
 ### String 模块
 
-| 函数 | 说明 |
-|---|---|
-| `string newString()` | 创建空字符串（初始容量 200） |
-| `string newStringFrom(const char*)` | 从 C 字符串创建 |
-| `void deleteString(string)` | 释放实例 |
-| `int getStringStatus(const String*)` | 获取实例状态（强烈建议先检查） |
-| `size_t getStringLength(const String*)` | 获取长度 |
-| `const char* getStringContent(const String*)` | 获取只读 C 字符串 |
-| `string appendString(...) / appendStringFrom(...)` | 拼接 |
-| `string trim(...)` | 去除首尾空白 |
-| `string* splitString(..., char delimiter, int* count)` | 按分隔符分割（返回数组） |
-| `string replaceFirst(...) / replaceAll(...)` | 替换子串 |
-| `int toInt(...) / toLong(...) / toFloat(...)` 等 | 类型转换（安全，检查溢出） |
-| `string toLowerCase(...) / toUpperCase(...)` | 转换大小写 |
-| `string readLine()` | 从 stdin 读取一行（返回 String） |
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `string` | `newString()` | 创建空字符串 |
+| `string` | `newStringFrom(const char* const content)` | 从 C 字符串创建 |
+| `void` | `deleteString(string str)` | 释放实例，可传 `NULL` |
+| `int` | `getStringStatus(const String* const str)` | 获取实例状态 |
+| `size_t` | `getStringLength(const String* const str)` | 获取长度 |
+| `char*` | `getStringContent(const String* const str)` | 返回内容副本，需释放 |
+| `const char*` | `stringStatusToCharArray(const int status)` | 状态码转描述 |
+| `string` | `appendString(const String* const str1, const String* const str2)` | 拼接两个 String |
+| `string` | `appendStringFrom(const String* const str, const char* const content)` | 拼接 String 与 C 字符串 |
+| `string` | `reverseString(const String* const str)` | 反转字符串 |
+| `int` | `splitString(const String* const str, char delimiter, string** outArray, size_t* count)` | 按分隔符分割 |
+| `string` | `trim(const String* const str)` | 去除首尾空白 |
+| `string` | `clone(const String* const str)` | 克隆 |
+| `int` | `charAt(const String* const str, size_t index, char* result)` | 获取指定位置字符 |
+| `int` | `indexOfFront(const String* const str, char ch, size_t* result)` | 从前往后查找字符 |
+| `int` | `indexOfBack(const String* const str, char ch, size_t* result)` | 从后往前查找字符 |
+| `string` | `subStringInLengthFront(const String* const str, size_t start, size_t length)` | 从 start 向后取 length |
+| `string` | `subStringInLengthBack(const String* const str, size_t end, size_t length)` | 以 end 为终点向前取 length |
+| `string` | `subStringInRange(const String* const str, size_t start, size_t end)` | 截取 `[start, end)` |
+| `string` | `subStringInLengthFrontFrom(const char* const ch, size_t start, size_t length)` | 对 C 字符串从 start 向后取 length |
+| `string` | `subStringInLengthBackFrom(const char* const ch, size_t end, size_t length)` | 对 C 字符串以 end 为终点向前取 length |
+| `string` | `subStringInRangeFrom(const char* const ch, size_t start, size_t end)` | 对 C 字符串截取 `[start, end)` |
+| `string` | `replaceFirst(const String* const str, const char* const target, const String* const replacement)` | 替换首次匹配 |
+| `string` | `replaceAll(const String* const str, const char* const target, const String* const replacement)` | 替换全部匹配 |
+| `string` | `replaceFirstFrom(const String* const str, const char* const target, const char* const replacement)` | 替换首次匹配，替换内容为 C 字符串 |
+| `string` | `replaceAllFrom(const String* const str, const char* const target, const char* const replacement)` | 替换全部匹配，替换内容为 C 字符串 |
+| `bool` | `startWith(const String* const str, const char* const prefix)` | 是否以 prefix 开头 |
+| `bool` | `endWith(const String* const str, const char* const suffix)` | 是否以 suffix 结尾 |
+| `bool` | `startWithString(const String* const str, const String* const prefix)` | 是否以 String 前缀开头 |
+| `bool` | `endWithString(const String* const str, const String* const suffix)` | 是否以 String 后缀结尾 |
+| `bool` | `isEmpty(const String* const str)` | 是否为空串 |
+| `bool` | `isBlank(const String* const str)` | 是否全空白 |
+| `bool` | `equals(const String* const str1, const String* const str2)` | 判断两个 String 是否相等 |
+| `bool` | `equalsFrom(const String* const str, const char* const ch)` | 判断 String 与 C 字符串是否相等 |
+| `bool` | `contains(const String* const str1, const String* const str2)` | 判断是否包含 |
+| `bool` | `containsFrom(const String* const str, const char* const ch)` | 判断是否包含 C 字符串 |
+| `char*` | `toArray(const String* const str)` | 转为 C 字符串副本，需释放 |
+| `int` | `toInt(const String* const str, int* result)` | 转 int |
+| `int` | `toLong(const String* const str, long* result)` | 转 long |
+| `int` | `toLongLong(const String* const str, long long* result)` | 转 long long |
+| `int` | `toFloat(const String* const str, float* result)` | 转 float |
+| `int` | `toDouble(const String* const str, double* result)` | 转 double |
+| `string` | `toLowerCase(const String* const str)` | 转小写，返回新实例 |
+| `string` | `toUpperCase(const String* const str)` | 转大写，返回新实例 |
+| `stringBuilder` | `stringToSb(const String* const str)` | String 转 StringBuilder |
+
+### StringBuilder 模块
+
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `stringBuilder` | `newSb()` | 创建空 StringBuilder |
+| `stringBuilder` | `newSbFrom(const char* const ch)` | 从 C 字符串创建 |
+| `void` | `deleteSb(stringBuilder sb)` | 释放实例 |
+| `int` | `getSbStatus(const StringBuilder* const sb)` | 获取状态 |
+| `size_t` | `getSbLength(const StringBuilder* const sb)` | 获取长度 |
+| `const char*` | `getSbBuffer(const StringBuilder* const sb)` | 获取内部 buffer，只读 |
+| `const char*` | `getSbContent(const StringBuilder* const sb)` | 返回内容副本 |
+| `int` | `setSbContent(StringBuilder* const str, const char* const content)` | 设置内容 |
+| `int` | `changeAt(stringBuilder str, size_t index, char ch)` | 修改指定位置字符 |
+| `const char*` | `sbStatusToCharArray(const int status)` | 状态码转描述 |
+| `int` | `appendSb(StringBuilder* sb, const StringBuilder* const src)` | 追加 StringBuilder |
+| `int` | `appendSbFrom(stringBuilder sb, const char* const ch)` | 追加 C 字符串 |
+| `int` | `reverseSb(stringBuilder sb)` | 原地反转 |
+| `int` | `splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outArray, size_t* count)` | 分割 |
+| `int` | `trimSb(stringBuilder const str)` | 原地去除首尾空白 |
+| `stringBuilder` | `cloneSb(const StringBuilder* const str)` | 克隆 |
+| `int` | `charAtSb(const StringBuilder* const str, size_t index, char* result)` | 获取指定位置字符 |
+| `int` | `sbIndexOfFront(const StringBuilder* const str, char ch, size_t* result)` | 从前往后查找字符 |
+| `int` | `sbIndexOfBack(const StringBuilder* const str, char ch, size_t* result)` | 从后往前查找字符 |
+| `stringBuilder` | `subSbInLengthFront(const StringBuilder* const str, size_t start, size_t length)` | 从 start 向后取 length |
+| `stringBuilder` | `subSbInLengthBack(const StringBuilder* const str, size_t end, size_t length)` | 以 end 为终点向前取 length |
+| `stringBuilder` | `subSbInRange(const StringBuilder* const str, size_t start, size_t end)` | 截取 `[start, end)` |
+| `stringBuilder` | `subSbInLengthFrontFrom(const char* const ch, size_t start, size_t length)` | 对 C 字符串从 start 向后取 length |
+| `stringBuilder` | `subSbInLengthBackFrom(const char* const ch, size_t end, size_t length)` | 对 C 字符串以 end 为终点向前取 length |
+| `stringBuilder` | `subSbInRangeFrom(const char* const ch, size_t start, size_t end)` | 对 C 字符串截取 `[start, end)` |
+| `int` | `replaceSbFirst(StringBuilder* str, const char* const target, const StringBuilder* const replacement)` | 替换首次匹配 |
+| `int` | `replaceSbFirstFrom(StringBuilder* str, const char* const target, const char* const replacement)` | 替换首次匹配，替换内容为 C 字符串 |
+| `int` | `replaceSbAll(StringBuilder* str, const char* const target, const StringBuilder* const replacement)` | 替换全部匹配 |
+| `int` | `replaceSbAllFrom(StringBuilder* str, const char* const target, const char* const replacement)` | 替换全部匹配，替换内容为 C 字符串 |
+| `bool` | `sbStartWith(const StringBuilder* const str, const char* const prefix)` | 是否以 prefix 开头 |
+| `bool` | `sbEndWith(const StringBuilder* const str, const char* const suffix)` | 是否以 suffix 结尾 |
+| `bool` | `sbStartWithString(const StringBuilder* const str, const StringBuilder* const prefix)` | 是否以 StringBuilder 前缀开头 |
+| `bool` | `sbEndWithString(const StringBuilder* const str, const StringBuilder* const suffix)` | 是否以 StringBuilder 后缀结尾 |
+| `bool` | `sbIsEmpty(const StringBuilder* const str)` | 是否为空串 |
+| `bool` | `sbIsBlank(const StringBuilder* const str)` | 是否全空白 |
+| `bool` | `equalsSb(const StringBuilder* const str1, const StringBuilder* const str2)` | 判断两个 StringBuilder 是否相等 |
+| `bool` | `equalsSbFrom(const StringBuilder* const str, const char* const ch)` | 判断与 C 字符串是否相等 |
+| `bool` | `containsSb(const StringBuilder* const str1, const StringBuilder* const str2)` | 判断是否包含 |
+| `bool` | `containsSbFrom(const StringBuilder* const str, const char* const ch)` | 判断是否包含 C 字符串 |
+| `char*` | `sbToArray(const StringBuilder* const str)` | 转为 C 字符串副本，需释放 |
+| `int` | `sbToInt(const StringBuilder* const str, int* result)` | 转 int |
+| `int` | `sbToLong(const StringBuilder* const str, long* result)` | 转 long |
+| `int` | `sbToLongLong(const StringBuilder* const str, long long* result)` | 转 long long |
+| `int` | `sbToFloat(const StringBuilder* const str, float* result)` | 转 float |
+| `int` | `sbToDouble(const StringBuilder* const str, double* result)` | 转 double |
+| `int` | `sbToLowerCase(StringBuilder* str)` | 原地转小写 |
+| `int` | `sbToUpperCase(StringBuilder* str)` | 原地转大写 |
 
 ### ArrayList 模块
 
-| 函数 | 说明 |
-|---|---|
-| `ArrayList* alCreate(size_t typeSize)` | 创建存储指定类型元素的数组 |
-| `#define newArrayList(pointer)` | 类型安全的构造宏，自动推导 `typeSize` |
-| `void alDestroy(ArrayList*)` | 销毁实例 |
-| `int alGetStatus(const ArrayList*)` | 获取状态（强烈建议先检查） |
-| `size_t alGetCount(...)` | 元素个数 |
-| `size_t alGetMaxCount(...)` | 当前容量 |
-| `int alSetMaxCount(...)` | 手动调整容量（需 >= 元素数） |
-| `int alShrinkToFit(...)` | 缩容至恰好容纳元素 |
-| `int alPushBack(...) / alPushFront(...)` | 尾部/头部插入 |
-| `int alInsertAt(...)` | 指定位置插入 |
-| `int alPopBack(...) / alPopFront(...)` | 尾部/头部弹出 |
-| `int alRemoveAt(...)` | 删除指定位置 |
-| `int alGetAt(...) / alSetAt(...)` | 获取/设置元素 |
-| `int alClear(...)` | 清空（不释放内存，仅置 count=0） |
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `ArrayList*` | `newArrayList(pointer)` | 类型安全构造宏，展开为 `alCreate(sizeof(*(pointer)))` |
+| `ArrayList*` | `alCreate(size_t typeSize)` | 创建动态数组 |
+| `void` | `alDestroy(ArrayList* list)` | 销毁实例 |
+| `int` | `alGetStatus(const ArrayList* const list)` | 获取状态 |
+| `size_t` | `alGetCount(const ArrayList* const list)` | 获取元素数量 |
+| `size_t` | `alGetMaxCount(const ArrayList* const list)` | 获取当前容量 |
+| `int` | `alSetMaxCount(ArrayList* const list, size_t count)` | 手动设置容量 |
+| `int` | `alShrinkToFit(ArrayList* const list)` | 缩容到恰好容纳元素 |
+| `int` | `alGetAt(const ArrayList* const list, size_t index, void* ele)` | 获取指定位置元素 |
+| `int` | `alSetAt(ArrayList* const list, size_t index, const void* const content)` | 设置指定位置元素 |
+| `int` | `alPushBack(ArrayList* const list, const void* const content)` | 尾部插入 |
+| `int` | `alPushFront(ArrayList* const list, const void* const content)` | 头部插入 |
+| `int` | `alInsertAt(ArrayList* const list, const void* const content, size_t index)` | 指定位置插入 |
+| `int` | `alPopBack(ArrayList* const list)` | 尾部弹出 |
+| `int` | `alPopFront(ArrayList* const list)` | 头部弹出 |
+| `int` | `alRemoveAt(ArrayList* const list, size_t index)` | 删除指定位置 |
+| `int` | `alClear(ArrayList* const list)` | 清空元素数量，不释放 buffer |
+| `const char*` | `alStatusToArray(int status)` | 状态码转描述 |
 
 ### HashMap 模块
 
-| 函数 / 宏 | 说明 |
-|---|---|
-| `#define hmCreate(keyPointer, valuePointer, customHash, customCompare)` | **唯一对外构造入口**，根据 keyPointer 类型自动选 hash/compare |
-| `void hmDestroy(hashMap* handle)` | 销毁实例，同时把调用方的句柄置 0 |
-| `int hmPut(hashMap, const void* key, const void* value)` | 插入或覆盖键值对 |
-| `int hmGet(hashMap, const void* key, void* outValue)` | 查找，把 value 拷贝到 `outValue` |
-| `int hmRemove(hashMap, const void* key)` | 删除键值对 |
-| `int hmContains(hashMap, const void* key)` | 判断 key 是否存在 |
-| `int hmClear(hashMap)` | 清空所有键值对 |
-| `size_t hmGetCount(hashMap)` | 键值对数量 |
-| `size_t hmGetBucketCount(hashMap)` | 桶数量 |
-| `int hmGetStatus(hashMap)` | 获取实例状态 |
-| `int hmGetLastCreateStatus()` | 获取最近一次 `hmCreate` 的结果 |
-| `hashMapStatusReport hmGetStatusReport(hashMap)` | 一次性返回句柄有效、创建状态、实例状态 |
-| `bool hmHasIdentifier(hashMap)` | 检查句柄是否被赋值过（`identifier != 0`） |
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `bool` | `hmHasIdentifier(hashMap handle)` | `static inline`，检查句柄是否非 0 |
+| `hashMapStatusReport` | `hmGetStatusReport(hashMap handle)` | 返回句柄有效、创建状态、实例状态 |
+| `hashMap` | `hmNew(size_t keySize, size_t valueSize, hashFunction hash, compareFunction compare)` | 内部构造器，不建议直接调用 |
+| `hashMap` | `hmCreate(keyPointer, valuePointer, customHash, customCompare)` | 唯一对外构造宏 |
+| `int` | `hmGetLastCreateStatus(void)` | 获取最近一次创建状态 |
+| `void` | `hmDestroy(hashMap* handle)` | 销毁实例，并将句柄置 0 |
+| `int` | `hmPut(hashMap handle, const void* key, const void* value)` | 插入或覆盖键值对 |
+| `int` | `hmGet(hashMap handle, const void* key, void* outValue)` | 获取 value |
+| `int` | `hmRemove(hashMap handle, const void* key)` | 删除键值对 |
+| `int` | `hmContains(hashMap handle, const void* key)` | 判断 key 是否存在 |
+| `int` | `hmClear(hashMap handle)` | 清空所有键值对 |
+| `size_t` | `hmGetCount(hashMap handle)` | 获取键值对数量 |
+| `size_t` | `hmGetBucketCount(hashMap handle)` | 获取桶数量 |
+| `int` | `hmGetStatus(hashMap handle)` | 获取实例状态 |
+| `const char*` | `hmStatusToArray(int status)` | 状态码转描述 |
+| `size_t` | `hashCString(const void* key, size_t keySize)` | `char*` 键按内容哈希 |
+| `int` | `compareCString(const void* keyA, const void* keyB, size_t keySize)` | `char*` 键按内容比较 |
 
-**HashMap 内部构造器**：`hmNew(keySize, valueSize, hash, compare)` 由 `hmCreate` 宏展开调用，不要直接调用。它不做类型检查，直接接收函数指针，误用会导致运行时崩溃。
+### Scanner 模块
 
-### 辅助函数
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `string` | `nextLine()` | 从 stdin 读取一行，返回 String |
 
-- `const char* stringStatusToArray(int status)`
-- `const char* alStatusToArray(int status)`
-- `const char* hmStatusToArray(int status)`
+### 类型与状态
 
+| 类型 / 宏 | 头文件 | 说明 |
+|---|---|---|
+| `stringStatus` | `StringSrc.h` | `typedef stringCommonStatus stringStatus;` |
+| `stringBuilderStatus` | `StringBuilderSrc.h` | `typedef stringCommonStatus stringBuilderStatus;` |
+| `stringCommonStatus` | `StringComStatus.h` | String / StringBuilder 公共状态枚举 |
+| `alStatus` | `ArrayListSrc.h` | ArrayList 状态枚举 |
+| `hashMapStatus` | `HashMapSrc.h` | HashMap 状态枚举 |
+| `hashFunction` | `HashMap.h` | 哈希函数指针类型 |
+| `compareFunction` | `HashMap.h` | 比较函数指针类型 |
+| `hashMap` | `HashMap.h` | HashMap 句柄结构体 |
+| `hashMapStatusReport` | `HashMap.h` | HashMap 状态报告结构体 |
+| `wheels` | `wheel_ex.h` | DLL 导出 / 导入宏 |
 ---
 
-## 使用示例
+### 使用示例
 
 ### String 基本操作
 
@@ -289,6 +399,7 @@ if (alGetStatus(list) != AVAILABLEAL) {
     // 处理错误或退出
 }
 ```
+最好不要将带有指针的结构体类型传给容器，容器使用浅拷贝，如果传入了，请注意是否该释放某个资源
 
 ### 2. 内存管理
 
@@ -328,7 +439,7 @@ HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容
 
 ### 6. 线程安全
 
-**本库 v1.3 非线程安全**。HashMap 的注册表是全局的，ArrayList / String 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
+**本库 v1.4 非线程安全**。HashMap 的注册表是全局的，ArrayList / String 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
 
 **后续版本计划**：为 HashMap 提供线程安全方案，为其他模块统一引入注册表机制解决别名问题，届时会一并考虑并发安全。
 
@@ -339,9 +450,9 @@ HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容
 - **AL**：解决别名问题、线程安全
 - **HM**：每实例独立创建状态（替代当前全局 `lastCreateStatus`）、线程安全
 - **LL**：写出框架、解决别名问题
-- **SB**：完成实现、线程安全
+- **SB**：线程安全
 - **String**：改为真正不可变、解决别名问题、线程安全
-- **Scanner**：从老库迁移原生数据类型读取函数
+- **Scanner**：整型等原生类型的标准输入读取函数
 - **FO**：文件操作封装
 - **SQL 扩展库**：SQLite 封装、MySQL 封装
 - **模板版本**：AL / LL / HM 的宏模板，最大化类型安全

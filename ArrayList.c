@@ -264,9 +264,6 @@ const char* alStatusToArray(int status) {
 	case REALLOCALFAIL: {
 		return "fail to realloc";
 	}
-	case MALLOCALCHFAIL: {
-		return "fail to malloc char*";
-	}
 
 	case NULLALELEMENT: {
 		return "null element";

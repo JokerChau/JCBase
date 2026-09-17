@@ -11,7 +11,6 @@ typedef enum alStatus {
 	SUCCESSFULOP,					// 操作成功
 	WRONGALSTATUS,					// 未知实例状态（非可用），若需获取状态请调用getAlStatus
 	REALLOCALFAIL,					// 重分配内存失败
-	MALLOCALCHFAIL,
 
 	// 参数状态
 	NULLALELEMENT,					// 元素指向NULL

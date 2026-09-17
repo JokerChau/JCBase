@@ -45,10 +45,12 @@ static size_t fnv1a(const void* data, size_t size) {
 // ============================================================
 
 static int realHmResize(RealHashMap* map, size_t newBucketCount) {
+	// 设定最小桶数量
 	if (newBucketCount < MIN_BUCKET_COUNT) newBucketCount = MIN_BUCKET_COUNT;
 
+	// 为同数组申请内存
 	HashMapNode** newBuckets = (HashMapNode**)calloc(newBucketCount, sizeof(HashMapNode*));
-	if (!newBuckets) return REALLOCFAIL;
+	if (!newBuckets) return MALLOCFAIL;
 
 	for (size_t i = 0; i < map->bucketCount; ++i) {
 		HashMapNode* node = map->buckets[i];
