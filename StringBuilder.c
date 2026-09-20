@@ -93,6 +93,7 @@ int getSbStatus(const StringBuilder* const sb) {
 }
 
 size_t getSbLength(const StringBuilder* const sb) {
+	if (!sb)return 0;
 	return sb->len;
 }
 

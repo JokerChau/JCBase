@@ -94,6 +94,7 @@ int getStringStatus(const String* const str) {
 /* =============================================================== */
 // 获取实例长度
 size_t getStringLength(const String* const str) {
+	if (!str)return 0;
 	return str->cachedLen;
 }
 /* =============================================================== */
