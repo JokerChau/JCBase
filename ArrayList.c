@@ -1,4 +1,4 @@
-#include "ArrayList.h"
+#include "JC_ArrayList.h"
 #include <stdlib.h>
 #include <string.h>
 

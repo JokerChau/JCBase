@@ -1,4 +1,4 @@
-#include "StringBuilder.h"
+#include "JC_StringBuilder.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1272,6 +1272,13 @@ int sbToUpperCase(StringBuilder* str) {
 	}
 
 	return SUCCESSFULOP;
+}
+
+string sbToString(const String* const str) {
+	char* content = getStringContent(str);
+	stringBuilder sb = newSbFrom(content);
+	free(content);
+	return sb;
 }
 
 /*

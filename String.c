@@ -1,5 +1,5 @@
-#include "String.h"
-#include "Scanner.h"
+#include "JC_String.h"
+#include "JC_Scanner.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>

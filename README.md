@@ -172,6 +172,8 @@
 | `int` | `sbToDouble(const StringBuilder* const str, double* result)` | 转 double |
 | `int` | `sbToLowerCase(StringBuilder* str)` | 原地转小写 |
 | `int` | `sbToUpperCase(StringBuilder* str)` | 原地转大写 |
+| `string` | `sbToString(const StringBuilder* const str)` | StringBuilder 转 String |
+
 
 ### ArrayList 模块
 
@@ -439,7 +441,7 @@ HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容
 
 ### 6. 线程安全
 
-**本库 v1.4 非线程安全**。HashMap 的注册表是全局的，ArrayList / String 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
+**本库 v1.5 非线程安全**。HashMap 的注册表是全局的，ArrayList / String 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
 
 **后续版本计划**：为 HashMap 提供线程安全方案，为其他模块统一引入注册表机制解决别名问题，届时会一并考虑并发安全。
 
