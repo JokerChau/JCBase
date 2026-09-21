@@ -4,10 +4,11 @@
 #include "StringBuilderSrc.h"
 #include <stddef.h>
 #include <stdbool.h>
-#include "JC_String.h"
 
 typedef struct StringBuilder StringBuilder;
 typedef StringBuilder* stringBuilder;
+
+#include "JC_String.h"
 
 wheels stringBuilder newSb();
 
@@ -103,4 +104,4 @@ wheels int sbToLowerCase(StringBuilder* str);
 
 wheels int sbToUpperCase(StringBuilder* str);
 
-wheels string sbToString(const String* const str);
+wheels string sbToString(const StringBuilder* const str);

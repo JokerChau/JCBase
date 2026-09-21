@@ -4,11 +4,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "StringSrc.h"
-#include "JC_StringBuilder.h"
 
 typedef struct String String;
-
 typedef String* string;
+
+#include "JC_StringBuilder.h"
 
 wheels string newString();
 

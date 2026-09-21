@@ -1,6 +1,7 @@
 #include "JC_ArrayList.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 typedef struct ArrayList {
 	void* data;				// 数据内容

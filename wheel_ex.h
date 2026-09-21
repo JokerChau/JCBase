@@ -1,9 +1,27 @@
 #pragma once
 
+#if defined(_WIN32) || defined(_WIN64)
+
 #ifdef JCBASE_EXPORTS
 #define wheels __declspec(dllexport)
 #else
 #define wheels __declspec(dllimport)
+#endif
+
+#else
+
+#if defined(__GNUC__) || defined(__clang__)
+
+#ifdef JCBASE_EXPORTS
+#define wheels __attribute__((visibility("default")))
+#else
+#define wheels
+#endif
+
+#else
+#define wheels
+#endif
+
 #endif
 
 /*

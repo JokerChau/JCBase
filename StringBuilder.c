@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
 
 typedef struct StringBuilder {
 	char* buffer;
@@ -1274,31 +1275,6 @@ int sbToUpperCase(StringBuilder* str) {
 	return SUCCESSFULOP;
 }
 
-string sbToString(const String* const str) {
-	char* content = getStringContent(str);
-	stringBuilder sb = newSbFrom(content);
-	free(content);
-	return sb;
+string sbToString(const StringBuilder* const str) {
+	return newStringFrom(getSbBuffer(str));
 }
-
-/*
-
-
-int changeAt(String* const str, size_t index, char ch) {
-	if (!str) {
-		return NULLSTRING;
-	}
-	if (!str->buffer) {
-		return NULLBUFFER;
-	}
-	if (index >= getStringLength(str))return IDXOUTBOUNDS;
-
-	str->buffer[index] = ch;
-	if (ch == '\0') {
-		str->cachedLen = index;
-		return SUCCEEDTOTRUNCATESTRING;
-	}
-
-	return SUCCESSFULIDX;
-}
-*/

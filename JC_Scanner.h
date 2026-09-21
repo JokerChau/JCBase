@@ -2,7 +2,9 @@
 
 #include "wheel_ex.h"
 #include <stdio.h>
-#include "String.h"
+
+typedef struct String String;
+typedef String* string;
 
 string readLine();
 

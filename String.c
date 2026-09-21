@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdint.h>
 
 typedef struct String {
 	char* buffer;
