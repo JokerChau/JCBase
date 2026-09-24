@@ -22,7 +22,7 @@ static int alRealloc(ArrayList* list) {
 		}
 		else if (list->alMaxCount >= newMaxCap) {
 			// 已经到达理论最大容量，无法再涨
-			return REALLOCSIZEOUTBOUNDS;
+			return AL_REALLOCSIZEOUTBOUNDS;
 		}
 		else if (list->alMaxCount > newMaxCap / 2) {
 			// 翻倍会超过 maxCapacity，直接拉到 maxCapacity
@@ -33,13 +33,13 @@ static int alRealloc(ArrayList* list) {
 		}
 		// 重分配一个数据指针，大小为临时容量*类型大小
 		void* newData = realloc(list->data, newCap * list->typeSize);
-		if (!newData)return REALLOCALFAIL;
+		if (!newData)return AL_REALLOCFAIL;
 		// 分配成功，更新数据
 		list->data = newData;
 		list->alMaxCount = newCap;
-		return SUCCESSFULOP;
+		return AL_SUCCESSFULOP;
 	}
-	else return SUCCESSFULOP;
+	else return AL_SUCCESSFULOP;
 }
 
 // 构造函数
@@ -54,12 +54,12 @@ ArrayList* alCreate(size_t typeSize) {	//传入类型大小
 	list->alCount = 0;
 	list->alMaxCount = 0;
 	list->typeSize = typeSize;
-	// 数据类型无效，状态设置为非法类型INVALIDTYPESIZE
+	// 数据类型无效，状态设置为非法类型AL_INVALIDTYPESIZE
 	if (!typeSize) {
-		list->status = INVALIDALTYPESIZE;
+		list->status = AL_INVALIDTYPESIZE;
 		return list;
 	}
-	list->status = AVAILABLEAL;
+	list->status = AL_AVAILABLE;
 
 	return list;
 }
@@ -79,8 +79,8 @@ void alDestroy(ArrayList* list) {
 
 // 获取实例状态
 int alGetStatus(const ArrayList* const list) {
-	// 如果实例为NULL，则返回空实例状态NULLAL
-	if (!list)return NULLAL;
+	// 如果实例为NULL，则返回空实例状态AL_NULL
+	if (!list)return AL_NULL;
 
 	return list->status;
 }
@@ -99,76 +99,76 @@ size_t alGetMaxCount(const ArrayList* const list) {
 }
 
 int alSetMaxCount(ArrayList* const list, size_t count) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-	if (count < list->alCount)return CAPACITYLESSTHANMIN;
-	if (count == list->alMaxCount)return SUCCESSFULOP;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
+	if (count < list->alCount)return AL_CAPACITYLESSTHANMIN;
+	if (count == list->alMaxCount)return AL_SUCCESSFULOP;
 	if (count == 0 && list->alCount == 0) {
 		free(list->data);
 		list->data = NULL;
 		list->alMaxCount = 0;
-		return SUCCESSFULOP;
+		return AL_SUCCESSFULOP;
 	}
-	if (count > SIZE_MAX / list->typeSize)return REALLOCSIZEOUTBOUNDS;
+	if (count > SIZE_MAX / list->typeSize)return AL_REALLOCSIZEOUTBOUNDS;
 
 	void* newData = realloc(list->data, count * list->typeSize);
-	if (!newData)return REALLOCALFAIL;
+	if (!newData)return AL_REALLOCFAIL;
 	list->data = newData;
 	list->alMaxCount = count;
 
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 int alShrinkToFit(ArrayList* const list) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
 
 	if (list->alCount == 0) {
 		free(list->data);
 		list->data = NULL;
 		list->alMaxCount = 0;
-		return SUCCESSFULOP;
+		return AL_SUCCESSFULOP;
 	}
 
-	if (list->alMaxCount == list->alCount)return SUCCESSFULOP;
-	if (list->alCount > SIZE_MAX / list->typeSize) return REALLOCSIZEOUTBOUNDS;
+	if (list->alMaxCount == list->alCount)return AL_SUCCESSFULOP;
+	if (list->alCount > SIZE_MAX / list->typeSize) return AL_REALLOCSIZEOUTBOUNDS;
 
 	void* newData = realloc(list->data, list->alCount * list->typeSize);
-	if (!newData)return REALLOCALFAIL;
+	if (!newData)return AL_REALLOCFAIL;
 
 	list->data = newData;
 	list->alMaxCount = list->alCount;
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 int alGetAt(const ArrayList* const list, size_t index, void* ele) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-	if(!ele)return NULLALELEMENT;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
+	if(!ele)return AL_NULLELEMENT;
 	
-	if (index >= list->alCount)return ALIDXOUTBOUNDS;
+	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
 
 	char* tempData = (char*)list->data + index * list->typeSize;
 	memcpy(ele, tempData, list->typeSize);
 	
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 int alSetAt(ArrayList* const list, size_t index, const void* const content) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-	if (!content)return NULLALELEMENT;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
+	if (!content)return AL_NULLELEMENT;
 
-	if (index >= list->alCount)return ALIDXOUTBOUNDS;
+	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
 
 	memcpy((char*)list->data + index * list->typeSize, content, list->typeSize);
 
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 // 从后面补上单个元素
 int alPushBack(ArrayList* const list, const void* const content) {
-	if (!list)return NULLAL;
+	if (!list)return AL_NULL;
 	return alInsertAt(list, content, list->alCount);
 }
 
@@ -177,14 +177,14 @@ int alPushFront(ArrayList* const list, const void* const content) {
 }
 
 int alInsertAt(ArrayList* const list, const void* const content, size_t index) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-	if (!content)return NULLALELEMENT;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
+	if (!content)return AL_NULLELEMENT;
 
-	if (index > list->alCount)return ALIDXOUTBOUNDS;
+	if (index > list->alCount)return AL_IDXOUTBOUNDS;
 
 	int tempStatus = alRealloc(list);
-	if (tempStatus != SUCCESSFULOP)return tempStatus;
+	if (tempStatus != AL_SUCCESSFULOP)return tempStatus;
 
 	if (index == list->alCount) {
 		char* dest = (char*)list->data + list->alCount * list->typeSize;
@@ -200,28 +200,28 @@ int alInsertAt(ArrayList* const list, const void* const content, size_t index) {
 	}
 	list->alCount++;
 
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 int alPopBack(ArrayList* const list) {
-	if (!list) return NULLAL;
-	if (list->status != AVAILABLEAL) return WRONGALSTATUS;
-	if (list->alCount == 0)return ALALREADYEMPTY;
+	if (!list) return AL_NULL;
+	if (list->status != AL_AVAILABLE) return AL_WRONGSTATUS;
+	if (list->alCount == 0)return AL_ALREADYEMPTY;
 	return alRemoveAt(list, list->alCount - 1);
 }
 
 int alPopFront(ArrayList* const list) {
-	if (!list) return NULLAL;
-	if (list->status != AVAILABLEAL) return WRONGALSTATUS;
-	if (list->alCount == 0)return ALALREADYEMPTY;
+	if (!list) return AL_NULL;
+	if (list->status != AL_AVAILABLE) return AL_WRONGSTATUS;
+	if (list->alCount == 0)return AL_ALREADYEMPTY;
 	return alRemoveAt(list, 0);
 }
 
 int alRemoveAt(ArrayList* const list, size_t index) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
-	if (list->alCount == 0) return ALALREADYEMPTY;
-	if (index >= list->alCount)return ALIDXOUTBOUNDS;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
+	if (list->alCount == 0) return AL_ALREADYEMPTY;
+	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
 
 	if (index < list->alCount - 1) {
 		char* dest = (char*)list->data + list->typeSize * index;
@@ -231,51 +231,51 @@ int alRemoveAt(ArrayList* const list, size_t index) {
 	}
 	list->alCount--;
 
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 int alClear(ArrayList* const list) {
-	if (!list)return NULLAL;
-	if (list->status != AVAILABLEAL)return WRONGALSTATUS;
+	if (!list)return AL_NULL;
+	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
 	list->alCount = 0;
-	return SUCCESSFULOP;
+	return AL_SUCCESSFULOP;
 }
 
 const char* alStatusToArray(int status) {
 	switch (status) {
-	case NULLAL: {
+	case AL_NULL: {
 		return "null ArrayList*";
 	}
-	case AVAILABLEAL: {
+	case AL_AVAILABLE: {
 		return "available ArrayList*";
 	}
-	case INVALIDALTYPESIZE: {
+	case AL_INVALIDTYPESIZE: {
 		return "invalid type size of data";
 	}
-	case ALALREADYEMPTY: {
+	case AL_ALREADYEMPTY: {
 		return "ArrayList* has already been empty";
 	}
 
-	case SUCCESSFULOP: {
+	case AL_SUCCESSFULOP: {
 		return "successful operation";
 	}
-	case WRONGALSTATUS: {
+	case AL_WRONGSTATUS: {
 		return "ArrayList* status in error";
 	}
-	case REALLOCALFAIL: {
+	case AL_REALLOCFAIL: {
 		return "fail to realloc";
 	}
 
-	case NULLALELEMENT: {
+	case AL_NULLELEMENT: {
 		return "null element";
 	}
-	case ALIDXOUTBOUNDS: {
+	case AL_IDXOUTBOUNDS: {
 		return "index out of bounds";
 	}
-	case CAPACITYLESSTHANMIN: {
+	case AL_CAPACITYLESSTHANMIN: {
 		return "setted capacity is less than the current capacity";
 	}
-	case REALLOCSIZEOUTBOUNDS: {
+	case AL_REALLOCSIZEOUTBOUNDS: {
 		return "the size is bigger than SIZE_MAX/max size of size_t";
 	}
 	default: {

@@ -50,7 +50,7 @@ static int realHmResize(RealHashMap* map, size_t newBucketCount) {
 
 	// 为同数组申请内存
 	HashMapNode** newBuckets = (HashMapNode**)calloc(newBucketCount, sizeof(HashMapNode*));
-	if (!newBuckets) return MALLOCFAIL;
+	if (!newBuckets) return HM_MALLOCFAIL;
 
 	for (size_t i = 0; i < map->bucketCount; ++i) {
 		HashMapNode* node = map->buckets[i];
@@ -67,7 +67,7 @@ static int realHmResize(RealHashMap* map, size_t newBucketCount) {
 	free(map->buckets);
 	map->buckets = newBuckets;
 	map->bucketCount = newBucketCount;
-	return SUCCESSFULOP;
+	return HM_SUCCESSFULOP;
 }
 
 static RealHashMap* realHmCreate(size_t keySize, size_t valueSize,
@@ -82,7 +82,7 @@ static RealHashMap* realHmCreate(size_t keySize, size_t valueSize,
 	map->valueSize = valueSize;
 	map->hash = hash ? hash : fnv1a;
 	map->compare = compare ? compare : memcmp;
-	map->status = AVAILABLEHM;
+	map->status = HM_AVAILABLE;
 
 	map->buckets = (HashMapNode**)calloc(map->bucketCount, sizeof(HashMapNode*));
 	if (!map->buckets) {
@@ -109,10 +109,10 @@ static void realHmDestroy(RealHashMap* map) {
 }
 
 static int realHmPut(RealHashMap* map, const void* key, const void* value) {
-	if (!map) return NULLHM;
-	if (map->status != AVAILABLEHM) return WRONGHMSTATUS;
-	if (!key) return NULLHMKEY;
-	if (!value) return NULLHMVALUE;
+	if (!map) return HM_NULL;
+	if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
+	if (!key) return HM_NULLKEY;
+	if (!value) return HM_NULLVALUE;
 
 	size_t h = map->hash(key, map->keySize);
 	size_t bucket = h & (map->bucketCount - 1);
@@ -121,29 +121,29 @@ static int realHmPut(RealHashMap* map, const void* key, const void* value) {
 	while (node) {
 		if (map->compare(node->key, key, map->keySize) == 0) {
 			void* newValue = malloc(map->valueSize);
-			if (!newValue) return MALLOCFAIL;
+			if (!newValue) return HM_MALLOCFAIL;
 			memcpy(newValue, value, map->valueSize);
 			free(node->value);
 			node->value = newValue;
-			return SUCCESSFULOP;
+			return HM_SUCCESSFULOP;
 		}
 		node = node->next;
 	}
 
 	HashMapNode* newNode = (HashMapNode*)malloc(sizeof(HashMapNode));
-	if (!newNode) return MALLOCFAIL;
+	if (!newNode) return HM_MALLOCFAIL;
 
 	newNode->key = malloc(map->keySize);
 	if (!newNode->key) {
 		free(newNode);
-		return MALLOCFAIL;
+		return HM_MALLOCFAIL;
 	}
 
 	newNode->value = malloc(map->valueSize);
 	if (!newNode->value) {
 		free(newNode->key);
 		free(newNode);
-		return MALLOCFAIL;
+		return HM_MALLOCFAIL;
 	}
 
 	memcpy(newNode->key, key, map->keySize);
@@ -155,19 +155,19 @@ static int realHmPut(RealHashMap* map, const void* key, const void* value) {
 
 	if (map->elementCount * 4 > map->bucketCount * 3) {
 		int resizeStatus = realHmResize(map, map->bucketCount * 2);
-		if (resizeStatus != SUCCESSFULOP) {
-			return EXPANDFAILED;
+		if (resizeStatus != HM_SUCCESSFULOP) {
+			return HM_EXPANDFAILED;
 		}
 	}
 
-	return SUCCESSFULOP;
+	return HM_SUCCESSFULOP;
 }
 
 static int realHmGet(RealHashMap* map, const void* key, void* outValue) {
-	if (!map) return NULLHM;
-	if (map->status != AVAILABLEHM) return WRONGHMSTATUS;
-	if (!key) return NULLHMKEY;
-	if (!outValue) return NULLHMOUTVALUE;
+	if (!map) return HM_NULL;
+	if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
+	if (!key) return HM_NULLKEY;
+	if (!outValue) return HM_NULLOUTVALUE;
 
 	size_t h = map->hash(key, map->keySize);
 	size_t bucket = h & (map->bucketCount - 1);
@@ -176,17 +176,17 @@ static int realHmGet(RealHashMap* map, const void* key, void* outValue) {
 	while (node) {
 		if (map->compare(node->key, key, map->keySize) == 0) {
 			memcpy(outValue, node->value, map->valueSize);
-			return SUCCESSFULOP;
+			return HM_SUCCESSFULOP;
 		}
 		node = node->next;
 	}
-	return HASHMAPKEYNOTFOUND;
+	return HM_KEYNOTFOUND;
 }
 
 static int realHmRemove(RealHashMap* map, const void* key) {
-	if (!map) return NULLHM;
-	if (map->status != AVAILABLEHM) return WRONGHMSTATUS;
-	if (!key) return NULLHMKEY;
+	if (!map) return HM_NULL;
+	if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
+	if (!key) return HM_NULLKEY;
 
 	size_t h = map->hash(key, map->keySize);
 	size_t bucket = h & (map->bucketCount - 1);
@@ -204,21 +204,21 @@ static int realHmRemove(RealHashMap* map, const void* key) {
 			if (map->bucketCount > MIN_BUCKET_COUNT &&
 				map->elementCount * 4 < map->bucketCount) {
 				int resizeStatus = realHmResize(map, map->bucketCount / 2);
-				if (resizeStatus != SUCCESSFULOP) {
-					return SHRINKFAILED;
+				if (resizeStatus != HM_SUCCESSFULOP) {
+					return HM_SHRINKFAILED;
 				}
 			}
-			return SUCCESSFULOP;
+			return HM_SUCCESSFULOP;
 		}
 		link = &node->next;
 	}
-	return HASHMAPKEYNOTFOUND;
+	return HM_KEYNOTFOUND;
 }
 
 static int realHmContains(RealHashMap* map, const void* key) {
-	if (!map) return NULLHM;
-	if (map->status != AVAILABLEHM) return WRONGHMSTATUS;
-	if (!key) return NULLHMKEY;
+	if (!map) return HM_NULL;
+	if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
+	if (!key) return HM_NULLKEY;
 
 	size_t h = map->hash(key, map->keySize);
 	size_t bucket = h & (map->bucketCount - 1);
@@ -226,15 +226,15 @@ static int realHmContains(RealHashMap* map, const void* key) {
 	HashMapNode* node = map->buckets[bucket];
 	while (node) {
 		if (map->compare(node->key, key, map->keySize) == 0) {
-			return SUCCESSFULOP;
+			return HM_SUCCESSFULOP;
 		}
 		node = node->next;
 	}
-	return HASHMAPKEYNOTFOUND;
+	return HM_KEYNOTFOUND;
 }
 
 static int realHmClear(RealHashMap* map) {
-	if (!map) return NULLHM;
+	if (!map) return HM_NULL;
 
 	for (size_t i = 0; i < map->bucketCount; ++i) {
 		HashMapNode* node = map->buckets[i];
@@ -248,7 +248,7 @@ static int realHmClear(RealHashMap* map) {
 		map->buckets[i] = NULL;
 	}
 	map->elementCount = 0;
-	return SUCCESSFULOP;
+	return HM_SUCCESSFULOP;
 }
 
 // ============================================================
@@ -259,7 +259,7 @@ static int realHmClear(RealHashMap* map) {
 static RealHashMap* registry = NULL;
 static uint64_t nextIdentifier = 1;
 static bool identifierExhausted = false;
-static int lastCreateStatus = SUCCESSFULOP;
+static int lastCreateStatus = HM_SUCCESSFULOP;
 
 static bool ensureRegistry(void) {
 	if (registry != NULL) return true;
@@ -271,7 +271,7 @@ static RealHashMap* resolveHandle(hashMap handle) {
 	if (handle.identifier == 0) return NULL;
 
 	RealHashMap* real = NULL;
-	if (realHmGet(registry, &handle.identifier, &real) != SUCCESSFULOP) {
+	if (realHmGet(registry, &handle.identifier, &real) != HM_SUCCESSFULOP) {
 		return NULL;
 	}
 	return real;
@@ -284,38 +284,38 @@ static RealHashMap* resolveHandle(hashMap handle) {
 hashMap hmNew(size_t keySize, size_t valueSize,
 	hashFunction hash, compareFunction compare) {
 	hashMap invalid = { 0 };
-	lastCreateStatus = SUCCESSFULOP;
+	lastCreateStatus = HM_SUCCESSFULOP;
 
 	if (identifierExhausted) {
-		lastCreateStatus = IDENTIFIEREXHAUSTED;
+		lastCreateStatus = HM_IDENTIFIEREXHAUSTED;
 		return invalid;
 	}
 
 	if (!ensureRegistry()) {
-		lastCreateStatus = MALLOCFAIL;
+		lastCreateStatus = HM_MALLOCFAIL;
 		return invalid;
 	}
 
 	if (nextIdentifier == UINT64_MAX) {
 		identifierExhausted = true;
-		lastCreateStatus = IDENTIFIEREXHAUSTED;
+		lastCreateStatus = HM_IDENTIFIEREXHAUSTED;
 		return invalid;
 	}
 
 	RealHashMap* real = realHmCreate(keySize, valueSize, hash, compare);
 	if (!real) {
-		lastCreateStatus = MALLOCFAIL;
+		lastCreateStatus = HM_MALLOCFAIL;
 		return invalid;
 	}
 
 	if (keySize == 0 || valueSize == 0) {
-		real->status = INVALIDHMSIZE;
+		real->status = HM_INVALIDSIZE;
 	}
 
 	uint64_t identifier = nextIdentifier++;
 
 	int putStatus = realHmPut(registry, &identifier, &real);
-	if (putStatus != SUCCESSFULOP && putStatus != EXPANDFAILED) {
+	if (putStatus != HM_SUCCESSFULOP && putStatus != HM_EXPANDFAILED) {
 		realHmDestroy(real);
 		lastCreateStatus = putStatus;
 		return invalid;
@@ -348,7 +348,7 @@ void hmDestroy(hashMap* handle) {
 	handle->identifier = 0;
 
 	RealHashMap* real = NULL;
-	if (realHmGet(registry, &identifier, &real) != SUCCESSFULOP) {
+	if (realHmGet(registry, &identifier, &real) != HM_SUCCESSFULOP) {
 		return;
 	}
 
@@ -358,31 +358,31 @@ void hmDestroy(hashMap* handle) {
 
 int hmPut(hashMap handle, const void* key, const void* value) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return realHmPut(real, key, value);
 }
 
 int hmGet(hashMap handle, const void* key, void* outValue) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return realHmGet(real, key, outValue);
 }
 
 int hmRemove(hashMap handle, const void* key) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return realHmRemove(real, key);
 }
 
 int hmContains(hashMap handle, const void* key) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return realHmContains(real, key);
 }
 
 int hmClear(hashMap handle) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return realHmClear(real);
 }
 
@@ -400,7 +400,7 @@ size_t hmGetBucketCount(hashMap handle) {
 
 int hmGetStatus(hashMap handle) {
 	RealHashMap* real = resolveHandle(handle);
-	if (!real) return NULLHM;
+	if (!real) return HM_NULL;
 	return real->status;
 }
 
@@ -431,22 +431,22 @@ int compareCString(const void* keyA, const void* keyB, size_t keySize) {
 
 const char* hmStatusToArray(int status) {
 	switch (status) {
-	case NULLHM:              return "null hashMap handle";
-	case AVAILABLEHM:         return "available hashMap";
-	case INVALIDHMSIZE:       return "invalid key size or value size";
-	case WRONGHMSTATUS:       return "hashMap status in error";
-	case NULLHMKEY:           return "null key";
-	case NULLHMVALUE:         return "null value";
-	case NULLHMOUTVALUE:      return "null output value";
-	case HASHMAPKEYNOTFOUND:  return "key not found";
+	case HM_NULL:				return "null hashMap handle";
+	case HM_AVAILABLE:			return "available hashMap";
+	case HM_INVALIDSIZE:		return "invalid key size or value size";
+	case HM_WRONGSTATUS:		return "hashMap status in error";
+	case HM_NULLKEY:			return "null key";
+	case HM_NULLVALUE:			return "null value";
+	case HM_NULLOUTVALUE:		return "null output value";
+	case HM_KEYNOTFOUND:		return "key not found";
 
-	case EXPANDFAILED:        return "expand failed";
-	case SHRINKFAILED:        return "shrink failed";
-	case IDENTIFIEREXHAUSTED: return "identifier exhausted";
+	case HM_EXPANDFAILED:        return "expand failed";
+	case HM_SHRINKFAILED:        return "shrink failed";
+	case HM_IDENTIFIEREXHAUSTED: return "identifier exhausted";
 
-	case REALLOCFAIL:         return "fail to realloc";
-	case MALLOCFAIL:          return "fail to malloc";
-	case SUCCESSFULOP:        return "successful operation";
+	case HM_REALLOCFAIL:         return "fail to realloc";
+	case HM_MALLOCFAIL:          return "fail to malloc";
+	case HM_SUCCESSFULOP:        return "successful operation";
 	default:                  return "unknown status";
 	}
 }

@@ -1,5 +1,58 @@
 #pragma once
 
-#include "StringComStatus.h"
+typedef enum stringStatus {
+	STR_NULL = -1,						// String 实例为 NULL
+	STR_AVAILABLE = 0,					// 实例可用
+	STR_NULLBUFFER = 1,					// 实例的 buffer 为 NULL
+	STR_EMPTYBUFFER,					// buffer 为空（未分配）
 
-typedef stringCommonStatus stringStatus;
+	STR_EMPTY,							// String 空串
+	STR_BLANK,							// String 全空白
+
+	STR_FAILEDTOCOMBINE,				// 内容结合失败
+	STR_WRONGSTATUS,					// String 状态非可用
+	STR_FAILEDTOREALLOC,				// 重分配内存失败
+	STR_FAILEDTOALLOC,					// 内存操作失败
+
+	STR_NULLINT,
+	STR_OVERFLOWINT,
+	STR_NOTINT,
+	STR_SUCCEEDTOINT,
+
+	STR_NULLLONG,
+	STR_OVERFLOWLONG,
+	STR_NOTLONG,
+	STR_SUCCEEDTOLONG,
+
+	STR_NULLLONGLONG,
+	STR_OVERFLOWLONGLONG,
+	STR_NOTLONGLONG,
+	STR_SUCCEEDTOLONGLONG,
+
+	STR_NULLFLOAT,
+	STR_OVERFLOWFLOAT,
+	STR_NOTFLOAT,
+	STR_SUCCEEDTOFLOAT,
+	
+	STR_NULLDOUBLE,
+	STR_OVERFLOWDOUBLE,
+	STR_NOTDOUBLE,
+	STR_SUCCEEDTODOUBLE,
+
+	STR_NULLCHAR,						// 无效的待接受 char*
+	STR_NULLARRAY,						// 输出数组指针为 NULL
+
+	STR_IDXOUTBOUNDS,					// 索引越界
+	STR_SUCCESSFULIDX,					// 索引有效
+	STR_SUCCEEDTOTRUNCATE,				// 成功截断 String
+	STR_SUCCEEDTOFINDCH,				// 成功通过 ch 找到索引
+	STR_WITHOUTCH,						// 没有通过 ch 找到索引
+	STR_INVALIDSTART,					// 起始点索引无效
+	STR_INVALIDEND,						// 结束点索引无效
+	STR_INVALIDIDX,						// 索引无效
+	STR_INVALIDREPLACEMENT,				// 替换内容无效
+
+	STR_NULLCOUNT,						// 计数器指针为 NULL
+	STR_SUCCESSFULOP,					// 操作成功
+	STR_PARTIALSPLIT,					// 分割部分成功（数组中有 NULL）
+}stringStatus;

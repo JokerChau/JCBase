@@ -30,14 +30,14 @@ stringBuilder newSb() {
 	str->buffer = (char*)calloc(INITIAL_SB_SIZE, sizeof(char));
 	if (!str->buffer) {
 		str->buffer = NULL;
-		str->status = NULLBUFFER;
+		str->status = SB_NULLBUFFER;
 		str->len = 0;
 		str->cap = 0;
 	}
 	else {
 		str->len = 0;
 		str->cap = INITIAL_SB_SIZE;
-		str->status = AVAILABLE;
+		str->status = SB_AVAILABLE;
 	}
 
 	return str;
@@ -52,7 +52,7 @@ stringBuilder newSbFrom(const char* const ch) {
 
 	if (isNull) {
 		sb->buffer = NULL;
-		sb->status = NULLBUFFER;
+		sb->status = SB_NULLBUFFER;
 		sb->len = 0;
 		sb->cap = 0;
 		return sb;
@@ -64,7 +64,7 @@ stringBuilder newSbFrom(const char* const ch) {
 	sb->buffer = (char*)malloc(len + 1);
 	if (!sb->buffer) {
 		sb->buffer = NULL;
-		sb->status = NULLBUFFER;
+		sb->status = SB_NULLBUFFER;
 		sb->len = 0;
 		sb->cap = 0;
 	}
@@ -73,7 +73,7 @@ stringBuilder newSbFrom(const char* const ch) {
 		memcpy(sb->buffer, ch, len + 1);
 		sb->len = len;
 		sb->cap = len + 1;
-		sb->status = AVAILABLE;
+		sb->status = SB_AVAILABLE;
 	}
 
 	return sb;
@@ -89,7 +89,7 @@ void deleteSb(stringBuilder sb) {
 }
 
 int getSbStatus(const StringBuilder* const sb) {
-	if (!sb)return NULLSB;
+	if (!sb)return SB_NULL;
 	return sb->status;
 }
 
@@ -112,25 +112,25 @@ const char* getSbContent(const StringBuilder* const sb) {
 }
 
 int setSbContent(StringBuilder* const str, const char* const content) {
-	if (!str)return NULLSB;
-	if (str->status != AVAILABLE)return WRONGSBSTATUS;
+	if (!str)return SB_NULL;
+	if (str->status != SB_AVAILABLE)return SB_WRONGSTATUS;
 
 	// 内容为 NULL → 清空，不释放 buffer
 	if (!content) {
 		if (!str->buffer) {
 			str->buffer = (char*)malloc(1);
 			if (!str->buffer) {
-				str->status = NULLBUFFER;
+				str->status = SB_NULLBUFFER;
 				str->len = 0;
 				str->cap = 0;
-				return NULLBUFFER;
+				return SB_NULLBUFFER;
 			}
 			str->cap = 1;
 		}
 		str->buffer[0] = '\0';
 		str->len = 0;
-		str->status = AVAILABLE;
-		return SUCCESSFULOP;
+		str->status = SB_AVAILABLE;
+		return SB_SUCCESSFULOP;
 	}
 
 	size_t len = strlen(content);
@@ -140,8 +140,8 @@ int setSbContent(StringBuilder* const str, const char* const content) {
 	if (str->buffer && str->cap >= needed) {
 		memcpy(str->buffer, content, needed);
 		str->len = len;
-		str->status = AVAILABLE;
-		return SUCCESSFULOP;
+		str->status = SB_AVAILABLE;
+		return SB_SUCCESSFULOP;
 	}
 
 	// 容量不够，扩容
@@ -150,160 +150,179 @@ int setSbContent(StringBuilder* const str, const char* const content) {
 	// if (newCap < INITIAL_SB_SIZE)newCap = INITIAL_SB_SIZE;
 
 	char* newBuffer = (char*)realloc(str->buffer, newCap);
-	if (!newBuffer)return FAILEDTOREALLOC;
+	if (!newBuffer)return SB_FAILEDTOREALLOC;
 
 	str->buffer = newBuffer;
 	str->cap = newCap;
 	memcpy(str->buffer, content, needed);
 	str->len = len;
-	str->status = AVAILABLE;
-	return SUCCESSFULOP;
+	str->status = SB_AVAILABLE;
+	return SB_SUCCESSFULOP;
 }
 
 int changeAt(stringBuilder str, size_t index, char ch) {
 	if (!str) {
-		return NULLSB;
+		return SB_NULL;
 	}
 	if (!str->buffer) {
-		return NULLBUFFER;
+		return SB_NULLBUFFER;
 	}
-	if (index >= getSbLength(str))return IDXOUTBOUNDS;
+	if (index >= getSbLength(str))return SB_IDXOUTBOUNDS;
 
 	str->buffer[index] = ch;
 	if (ch == '\0') {
 		str->len = index;
-		return SUCCEEDTOTRUNCATESB;
+		return SB_SUCCEEDTOTRUNCATE;
 	}
 
-	return SUCCESSFULIDX;
+	return SB_SUCCESSFULIDX;
 }
 
 const char* sbStatusToCharArray(const int status) {
 	switch (status) {
-	case NULLSB: {
+	case SB_NULL: {
 		return "null stringbuilder";
 	}
-	case AVAILABLE: {
+	case SB_AVAILABLE: {
 		return "available stringbuilder";
 	}
-	case NULLBUFFER: {
+	case SB_NULLBUFFER: {
 		return "null buffer";
 	}
-	case EMPTYSB: {
+	case SB_EMPTY: {
 		return "empty stringbuilder";
 	}
-	case BLANKSB: {
+	case SB_BLANK: {
 		return "blank stringbuilder";
 	}
 
-	case FAILEDTOCOMBINE: {
+	case SB_FAILEDTOCOMBINE: {
 		return "failed to combine";
 	}
-	case WRONGSBSTATUS: {
+	case SB_WRONGSTATUS: {
 		return "wrong stringbuilder status";
 	}
-	case FAILEDTOREALLOC: {
+	case SB_FAILEDTOREALLOC: {
 		return "failed to realloc";
 	}
-	case FAILEDTOALLOC: {
+	case SB_FAILEDTOALLOC: {
 		return "failed to alloc";
 	}
 
-	case NULLINT: {
+	case SB_NULLINT: {
 		return "null int pointer";
 	}
-	case OVERFLOWINT: {
+	case SB_OVERFLOWINT: {
 		return "overflow int range";
 	}
-	case NOTINT: {
+	case SB_NOTINT: {
 		return "not int";
 	}
-	case SUCCEEDTOINT: {
+	case SB_SUCCEEDTOINT: {
 		return "succeed to change stringbuilder into int";
 	}
 
-	case NULLLONG: {
+	case SB_NULLLONG: {
 		return "null long int pointer";
 	}
-	case OVERFLOWLONG: {
+	case SB_OVERFLOWLONG: {
 		return "overflow long int range";
 	}
-	case NOTLONG: {
+	case SB_NOTLONG: {
 		return "not long int";
 	}
-	case SUCCEEDTOLONG: {
+	case SB_SUCCEEDTOLONG: {
 		return "succeed to change stringbuilder into long int";
 	}
 
-	case NULLLONGLONG: {
+	case SB_NULLLONGLONG: {
 		return "null long long int pointer";
 	}
-	case OVERFLOWLONGLONG: {
+	case SB_OVERFLOWLONGLONG: {
 		return "overflow long long int range";
 	}
-	case NOTLONGLONG: {
+	case SB_NOTLONGLONG: {
 		return "not long long int";
 	}
-	case SUCCEEDTOLONGLONG: {
+	case SB_SUCCEEDTOLONGLONG: {
 		return "succeed to change stringbuilder into long long int";
 	}
 
-	case NULLFLOAT: {
+	case SB_NULLFLOAT: {
 		return "null float pointer";
 	}
-	case OVERFLOWFLOAT: {
+	case SB_OVERFLOWFLOAT: {
 		return "overflow float range";
 	}
-	case NOTFLOAT: {
+	case SB_NOTFLOAT: {
 		return "not float";
 	}
-	case SUCCEEDTOFLOAT: {
+	case SB_SUCCEEDTOFLOAT: {
 		return "succeed to change stringbuilder into float";
 	}
 
-	case NULLDOUBLE: {
+	case SB_NULLDOUBLE: {
 		return "null double pointer";
 	}
-	case OVERFLOWDOUBLE: {
+	case SB_OVERFLOWDOUBLE: {
 		return "overflow double range";
 	}
-	case NOTDOUBLE: {
+	case SB_NOTDOUBLE: {
 		return "not double";
 	}
-	case SUCCEEDTODOUBLE: {
+	case SB_SUCCEEDTODOUBLE: {
 		return "succeed to change stringbuilder into double";
 	}
 
-	case NULLCHAR: {
+	case SB_NULLCHAR: {
 		return "null char pointer";
 	}
+	case SB_NULLARRAY: {
+		return "null stringBuilder array";
+	}
+	case SB_NULLCOUNT: {
+		return "null counter";
+	}
+	case SB_NULLTARGET: {
+		return "null target pointer";
+	}
 
-	case IDXOUTBOUNDS: {
+	case SB_IDXOUTBOUNDS: {
 		return "index out of bounds";
 	}
-	case SUCCESSFULIDX: {
+	case SB_SUCCESSFULIDX: {
 		return "succeed to use the index";
 	}
-	case SUCCEEDTOTRUNCATESB: {
+	case SB_SUCCEEDTOTRUNCATE: {
 		return "succeed to truncate the stringbuilder";
 	}
-	case SUCCEEDTOFINDCH: {
+	case SB_SUCCEEDTOFINDCH: {
 		return "succeed to find the char you want";
 	}
-	case WITHOUTCH: {
+	case SB_WITHOUTCH: {
 		return "there is no char you want here";
 	}
-	case INVALIDSTART: {
+	case SB_INVALIDSTART: {
 		return "invalid start index";
 	}
-	case INVALIDEND: {
+	case SB_INVALIDEND: {
 		return "invalid end index";
 	}
-	case INVALIDIDX: {
+	case SB_INVALIDIDX: {
 		return "invalid index";
 	}
-	case INVALIDREPLACEMENT: {
+	case SB_INVALIDREPLACEMENT: {
 		return "what you want to replace with is invalid";
+	}
+
+	case SB_SUCCESSFULOP: {
+		return "successful operation";
+	}
+	case SB_PARTIALSPLIT: {
+		return "stringBuilder partial split";
+	}
+	case SB_NOTARGETMATCHED: {
+		return "target not matched";
 	}
 	default: {
 		return "Unknown status";
@@ -313,8 +332,8 @@ const char* sbStatusToCharArray(const int status) {
 
 int appendSb(StringBuilder* sb, const StringBuilder* const src) {
 	int tempStatus = getSbStatus(sb);
-	if (tempStatus != AVAILABLE)return tempStatus;
-	if (!src || !src->buffer || src->buffer[0] == '\0')return SUCCESSFULOP;
+	if (tempStatus != SB_AVAILABLE)return tempStatus;
+	if (!src || !src->buffer || src->buffer[0] == '\0')return SB_SUCCESSFULOP;
 	if (sb->buffer[0] == '\0')return setSbContent(sb, src->buffer);
 	// 如果都不为空
 
@@ -326,13 +345,13 @@ int appendSb(StringBuilder* sb, const StringBuilder* const src) {
 	if (sb->cap >= srcLen + sbLen + 1) {
 		memmove(sb->buffer + sbLen, src->buffer, srcLen + 1);
 		sb->len = sbLen + srcLen;
-		return SUCCESSFULOP;
+		return SB_SUCCESSFULOP;
 	}
 	// 如果cap不够则扩容
 	else {
-		if (sb->cap > SIZE_MAX / GROWTH) return FAILEDTOREALLOC;
+		if (sb->cap > SIZE_MAX / GROWTH) return SB_FAILEDTOREALLOC;
 		char* newBuffer = (char*)realloc(sb->buffer, sb->cap * GROWTH);
-		if (!newBuffer)return FAILEDTOREALLOC;
+		if (!newBuffer)return SB_FAILEDTOREALLOC;
 		sb->buffer = newBuffer;
 		sb->cap *= GROWTH;
 		goto BEGIN;
@@ -341,29 +360,29 @@ int appendSb(StringBuilder* sb, const StringBuilder* const src) {
 
 int appendSbFrom(stringBuilder sb, const char* const ch) {
 	int tempStatus = getSbStatus(sb);
-	if (tempStatus != AVAILABLE)return tempStatus;
-	if (!ch || ch[0] == '\0')return SUCCESSFULOP;
+	if (tempStatus != SB_AVAILABLE)return tempStatus;
+	if (!ch || ch[0] == '\0')return SB_SUCCESSFULOP;
 	if (sb->buffer[0] == '\0')return setSbContent(sb, ch);
 
 	size_t srcLen = strlen(ch);
 	size_t sbLen = strlen(sb->buffer);
 
 	while (sb->cap < sbLen + srcLen + 1) {
-		if (sb->cap > SIZE_MAX / GROWTH) return FAILEDTOREALLOC;
+		if (sb->cap > SIZE_MAX / GROWTH) return SB_FAILEDTOREALLOC;
 		char* newBuffer = (char*)realloc(sb->buffer, sb->cap * GROWTH);
-		if (!newBuffer)return FAILEDTOREALLOC;
+		if (!newBuffer)return SB_FAILEDTOREALLOC;
 		sb->buffer = newBuffer;
 		sb->cap *= GROWTH;
 	}
 	memmove(sb->buffer + sbLen, ch, srcLen + 1);
 	sb->len = sbLen + srcLen;
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 int reverseSb(stringBuilder sb) {
-	if (!sb)return NULLSB;
-	if (!sb->buffer)return NULLBUFFER;
-	if (sb->buffer[0] == '\0')return SUCCESSFULOP;
+	if (!sb)return SB_NULL;
+	if (!sb->buffer)return SB_NULLBUFFER;
+	if (sb->buffer[0] == '\0')return SB_SUCCESSFULOP;
 
 	for (size_t i = 0; i < sb->len / 2; i++) {
 		char c = sb->buffer[i];
@@ -371,31 +390,31 @@ int reverseSb(stringBuilder sb) {
 		sb->buffer[sb->len - 1 - i] = c;
 	}
 
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 int splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outArray, size_t* count) {
-	if (!outArray)return NULLARRAY;
+	if (!outArray)return SB_NULLARRAY;
 	// 计数器为空
-	if (!count)return NULLCOUNT;
+	if (!count)return SB_NULLCOUNT;
 
 	*outArray = NULL;
 	*count = 0;
 
 	// 三种置空判断
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
 	if (str->buffer[0] == '\0') {
 		stringBuilder* stringArray = (stringBuilder*)malloc(sizeof(stringBuilder));
-		if (!stringArray)return FAILEDTOALLOC;
+		if (!stringArray)return SB_FAILEDTOALLOC;
 		stringArray[0] = newSbFrom("");
 		if (!stringArray[0]) {
 			free(stringArray);
-			return FAILEDTOALLOC;
+			return SB_FAILEDTOALLOC;
 		}
 		*count = 1;
 		*outArray = stringArray;
-		return SUCCESSFULOP;
+		return SB_SUCCESSFULOP;
 	}
 
 	size_t len = strlen(str->buffer);
@@ -405,7 +424,7 @@ int splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outA
 
 	stringBuilder* stringArray = (stringBuilder*)malloc(sizeof(stringBuilder) * wholeCount);
 	if (!stringArray) {
-		return FAILEDTOALLOC;
+		return SB_FAILEDTOALLOC;
 	}
 
 	bool hasNull = false;
@@ -442,13 +461,13 @@ int splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outA
 	*outArray = stringArray;
 	*count = wholeCount;
 
-	return hasNull ? PARTIALSPLIT : SUCCESSFULOP;
+	return hasNull ? SB_PARTIALSPLIT : SB_SUCCESSFULOP;
 }
 
 int trimSb(stringBuilder const str) {
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
-	if (str->buffer[0] == '\0')return SUCCESSFULOP;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
+	if (str->buffer[0] == '\0')return SB_SUCCESSFULOP;
 
 	size_t len = getSbLength(str);
 	size_t start = 0;
@@ -459,7 +478,7 @@ int trimSb(stringBuilder const str) {
 	if (start == len) {
 		str->buffer[0] = '\0';
 		str->len = 0;
-		return SUCCESSFULOP;
+		return SB_SUCCESSFULOP;
 	}
 
 	size_t end = len - 1;
@@ -475,7 +494,7 @@ int trimSb(stringBuilder const str) {
 	str->buffer[newLen] = '\0';
 	str->len = newLen;
 	
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 stringBuilder cloneSb(const StringBuilder* const str) {
@@ -484,44 +503,44 @@ stringBuilder cloneSb(const StringBuilder* const str) {
 }
 
 int charAtSb(const StringBuilder* const str, size_t index, char* result) {
-	if (!result)return NULLCHAR;
+	if (!result)return SB_NULLCHAR;
 	if (!str) {
-		return NULLSB;
+		return SB_NULL;
 	}
 	if (!str->buffer) {
-		return NULLBUFFER;
+		return SB_NULLBUFFER;
 	}
-	if (index >= getSbLength(str))return IDXOUTBOUNDS;
+	if (index >= getSbLength(str))return SB_IDXOUTBOUNDS;
 
 	*result = str->buffer[index];
 
-	return SUCCESSFULIDX;
+	return SB_SUCCESSFULIDX;
 }
 
 int sbIndexOfFront(const StringBuilder* const str, char ch, size_t* result) {
-	if (!result)return NULLINT;
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
+	if (!result)return SB_NULLINT;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
 
 	const char* found = strchr(str->buffer, ch);
 	if (found) {
 		*result = (size_t)(found - str->buffer);
-		return SUCCEEDTOFINDCH;
+		return SB_SUCCEEDTOFINDCH;
 	}
-	return WITHOUTCH;
+	return SB_WITHOUTCH;
 }
 
 int sbIndexOfBack(const StringBuilder* const str, char ch, size_t* result) {
-	if (!result)return NULLINT;
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
+	if (!result)return SB_NULLINT;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
 	for (ptrdiff_t i = (ptrdiff_t)getSbLength(str) - 1; i >= 0; --i) {
 		if (str->buffer[i] == ch) {
 			*result = (size_t)i;
-			return SUCCEEDTOFINDCH;
+			return SB_SUCCEEDTOFINDCH;
 		}
 	}
-	return WITHOUTCH;
+	return SB_WITHOUTCH;
 }
 
 stringBuilder subSbInLengthFront(const StringBuilder* const str, size_t start, size_t length) {
@@ -532,7 +551,7 @@ stringBuilder subSbInLengthFront(const StringBuilder* const str, size_t start, s
 	size_t len = getSbLength(str);
 	if (start >= len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDSTART;
+		if (temp)temp->status = SB_INVALIDSTART;
 		return temp;
 	}
 
@@ -542,14 +561,14 @@ stringBuilder subSbInLengthFront(const StringBuilder* const str, size_t start, s
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
@@ -563,7 +582,7 @@ stringBuilder subSbInLengthBack(const StringBuilder* const str, size_t end, size
 	size_t len = getSbLength(str);
 	if (end >= len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDEND;
+		if (temp)temp->status = SB_INVALIDEND;
 		return temp;
 	}
 
@@ -573,14 +592,14 @@ stringBuilder subSbInLengthBack(const StringBuilder* const str, size_t end, size
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + (end - length + 1), length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
@@ -593,14 +612,14 @@ stringBuilder subSbInRange(const StringBuilder* const str, size_t start, size_t 
 
 	if (start > end) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDIDX;
+		if (temp)temp->status = SB_INVALIDIDX;
 		return temp;
 	}
 
 	size_t len = getSbLength(str);
 	if (start >= len || end > len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = IDXOUTBOUNDS;
+		if (temp)temp->status = SB_IDXOUTBOUNDS;
 		return temp;
 	}
 
@@ -609,14 +628,14 @@ stringBuilder subSbInRange(const StringBuilder* const str, size_t start, size_t 
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
@@ -629,7 +648,7 @@ stringBuilder subSbInLengthFrontFrom(const char* const ch, size_t start, size_t 
 	size_t len = strlen(ch);
 	if (start >= len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDSTART;
+		if (temp)temp->status = SB_INVALIDSTART;
 		return temp;
 	}
 
@@ -639,14 +658,14 @@ stringBuilder subSbInLengthFrontFrom(const char* const ch, size_t start, size_t 
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
@@ -659,7 +678,7 @@ stringBuilder subSbInLengthBackFrom(const char* const ch, size_t end, size_t len
 	size_t len = strlen(ch);
 	if (end >= len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDEND;
+		if (temp)temp->status = SB_INVALIDEND;
 		return temp;
 	}
 
@@ -669,14 +688,14 @@ stringBuilder subSbInLengthBackFrom(const char* const ch, size_t end, size_t len
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + (end - length + 1), length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
@@ -688,14 +707,14 @@ stringBuilder subSbInRangeFrom(const char* const ch, size_t start, size_t end) {
 
 	if (start > end) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = INVALIDIDX;
+		if (temp)temp->status = SB_INVALIDIDX;
 		return temp;
 	}
 
 	size_t len = strlen(ch);
 	if (start >= len || end > len) {
 		stringBuilder temp = newSbFrom("");
-		if (temp)temp->status = IDXOUTBOUNDS;
+		if (temp)temp->status = SB_IDXOUTBOUNDS;
 		return temp;
 	}
 
@@ -704,38 +723,38 @@ stringBuilder subSbInRangeFrom(const char* const ch, size_t start, size_t end) {
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = SB_NULLBUFFER;
 		temp->len = 0;
 		temp->cap = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = SB_AVAILABLE;
 	temp->len = length;
 	temp->cap = length + 1;
 	return temp;
 }
 
 int replaceSbFirst(StringBuilder* str, const char* const target, const StringBuilder* const replacement) {
-	if (!str)return NULLSB;
-	if (!replacement)return INVALIDREPLACEMENT;
+	if (!str)return SB_NULL;
+	if (!replacement)return SB_INVALIDREPLACEMENT;
 	return replaceSbFirstFrom(str, target, replacement->buffer);
 }
 
 int replaceSbFirstFrom(StringBuilder* str, const char* const target, const char* const replacement) {
-	if (!str)return NULLSB;
+	if (!str)return SB_NULL;
 
-	if (!str->buffer)return NULLBUFFER;
-	if (!target)return NULLTARGET;
-	if (!replacement)return INVALIDREPLACEMENT;
+	if (!str->buffer)return SB_NULLBUFFER;
+	if (!target)return SB_NULLTARGET;
+	if (!replacement)return SB_INVALIDREPLACEMENT;
 
 	if (str->buffer[0] == '\0' && target[0] == '\0')return setSbContent(str, replacement);
-	if (str->buffer[0] == '\0')return NOTARGETMATCHED;
+	if (str->buffer[0] == '\0')return SB_NOTARGETMATCHED;
 	if (target[0] == '\0')return appendSbFrom(str, replacement);
 
 	char* indexChar = strstr(str->buffer, target);
-	if (!indexChar)return NOTARGETMATCHED;
+	if (!indexChar)return SB_NOTARGETMATCHED;
 
 	size_t index = (size_t)(indexChar - str->buffer);
 	size_t targetLen = strlen(target);
@@ -744,7 +763,7 @@ int replaceSbFirstFrom(StringBuilder* str, const char* const target, const char*
 
 	if (targetLen == replaceLen) {
 		memmove(str->buffer + index, replacement, replaceLen);
-		return SUCCESSFULOP;
+		return SB_SUCCESSFULOP;
 	}
 
 	size_t preLen = index;
@@ -754,7 +773,7 @@ int replaceSbFirstFrom(StringBuilder* str, const char* const target, const char*
 
 	if (str->cap < needed) {
 		char* newBuffer = (char*)realloc(str->buffer, needed);
-		if (!newBuffer)return FAILEDTOREALLOC;
+		if (!newBuffer)return SB_FAILEDTOREALLOC;
 		str->buffer = newBuffer;
 		str->cap = needed;
 	}
@@ -763,24 +782,24 @@ int replaceSbFirstFrom(StringBuilder* str, const char* const target, const char*
 	memcpy(str->buffer + index, replacement, replaceLen);
 
 	str->len = newLen;
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 int replaceSbAll(StringBuilder* str, const char* const target, const StringBuilder* const replacement) {
-	if (!str)return NULLSB;
-	if (!replacement)return INVALIDREPLACEMENT;
+	if (!str)return SB_NULL;
+	if (!replacement)return SB_INVALIDREPLACEMENT;
 	return replaceSbAllFrom(str, target, replacement->buffer);
 }
 
 int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* const replacement) {
-	if (!str)return NULLSB;
+	if (!str)return SB_NULL;
 
-	if (!str->buffer)return NULLBUFFER;
-	if (!target)return NULLTARGET;
-	if (!replacement)return INVALIDREPLACEMENT;
+	if (!str->buffer)return SB_NULLBUFFER;
+	if (!target)return SB_NULLTARGET;
+	if (!replacement)return SB_INVALIDREPLACEMENT;
 
 	if (str->buffer[0] == '\0' && target[0] == '\0')return setSbContent(str, replacement);
-	if (str->buffer[0] == '\0')return NOTARGETMATCHED;
+	if (str->buffer[0] == '\0')return SB_NOTARGETMATCHED;
 	if (target[0] == '\0')return appendSbFrom(str, replacement);
 
 	size_t strLen = str->len;
@@ -790,7 +809,7 @@ int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* c
 	// 第一遍：扫描所有匹配位置
 	size_t capacity = 16;
 	size_t* positions = (size_t*)malloc(capacity * sizeof(size_t));
-	if (!positions)return FAILEDTOALLOC;
+	if (!positions)return SB_FAILEDTOALLOC;
 
 	size_t count = 0;
 	size_t scan = 0;
@@ -801,7 +820,7 @@ int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* c
 				size_t* newPositions = (size_t*)realloc(positions, capacity * sizeof(size_t));
 				if (!newPositions) {
 					free(positions);
-					return FAILEDTOREALLOC;
+					return SB_FAILEDTOREALLOC;
 				}
 				positions = newPositions;
 			}
@@ -815,7 +834,7 @@ int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* c
 
 	if (count == 0) {
 		free(positions);
-		return NOTARGETMATCHED;
+		return SB_NOTARGETMATCHED;
 	}
 
 	// 计算最终长度
@@ -832,7 +851,7 @@ int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* c
 		char* newBuffer = (char*)realloc(str->buffer, newLen + 1);
 		if (!newBuffer) {
 			free(positions);
-			return FAILEDTOREALLOC;
+			return SB_FAILEDTOREALLOC;
 		}
 		str->buffer = newBuffer;
 		str->cap = newLen + 1;
@@ -862,7 +881,7 @@ int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* c
 	free(positions);
 	str->len = newLen;
 	str->buffer[newLen] = '\0';
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 bool sbStartWith(const StringBuilder* const str, const char* const prefix) {
@@ -972,9 +991,9 @@ char* sbToArray(const StringBuilder* const str) {
 }
 
 int sbToInt(const StringBuilder* const str, int* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSB;
-	if (getSbStatus(str))return WRONGSBSTATUS;
-	if (!result)return NULLINT;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return SB_EMPTY;
+	if (getSbStatus(str))return SB_WRONGSTATUS;
+	if (!result)return SB_NULLINT;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -986,7 +1005,7 @@ int sbToInt(const StringBuilder* const str, int* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSB;
+		return SB_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1004,31 +1023,31 @@ int sbToInt(const StringBuilder* const str, int* result) {
 			int digit = p[i] - '0';
 
 			if (tempNum < (INT_MIN + digit) / 10) {
-				return OVERFLOWINT;
+				return SB_OVERFLOWINT;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTINT;
+			return SB_NOTINT;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOINT;
+		return SB_SUCCEEDTOINT;
 	}
 	else {
-		return NOTINT;
+		return SB_NOTINT;
 	}
 }
 
 int sbToLong(const StringBuilder* const str, long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSB;
-	if (getSbStatus(str))return WRONGSBSTATUS;
-	if (!result)return NULLLONG;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return SB_EMPTY;
+	if (getSbStatus(str))return SB_WRONGSTATUS;
+	if (!result)return SB_NULLLONG;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1040,7 +1059,7 @@ int sbToLong(const StringBuilder* const str, long* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSB;
+		return SB_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1058,31 +1077,31 @@ int sbToLong(const StringBuilder* const str, long* result) {
 			long digit = p[i] - '0';
 
 			if (tempNum < (LONG_MIN + digit) / 10) {
-				return OVERFLOWLONG;
+				return SB_OVERFLOWLONG;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTLONG;
+			return SB_NOTLONG;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOLONG;
+		return SB_SUCCEEDTOLONG;
 	}
 	else {
-		return NOTLONG;
+		return SB_NOTLONG;
 	}
 }
 
 int sbToLongLong(const StringBuilder* const str, long long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSB;
-	if (getSbStatus(str))return WRONGSBSTATUS;
-	if (!result)return NULLLONGLONG;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return SB_EMPTY;
+	if (getSbStatus(str))return SB_WRONGSTATUS;
+	if (!result)return SB_NULLLONGLONG;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1094,7 +1113,7 @@ int sbToLongLong(const StringBuilder* const str, long long* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSB;
+		return SB_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1112,31 +1131,31 @@ int sbToLongLong(const StringBuilder* const str, long long* result) {
 			long long digit = p[i] - '0';
 
 			if (tempNum < (LLONG_MIN + digit) / 10) {
-				return OVERFLOWLONGLONG;
+				return SB_OVERFLOWLONGLONG;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTLONGLONG;
+			return SB_NOTLONGLONG;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOLONGLONG;
+		return SB_SUCCEEDTOLONGLONG;
 	}
 	else {
-		return NOTLONGLONG;
+		return SB_NOTLONGLONG;
 	}
 }
 
 int sbToFloat(const StringBuilder* const str, float* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSB;
-	if (getSbStatus(str))return WRONGSBSTATUS;
-	if (!result)return NULLFLOAT;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return SB_EMPTY;
+	if (getSbStatus(str))return SB_WRONGSTATUS;
+	if (!result)return SB_NULLFLOAT;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1148,7 +1167,7 @@ int sbToFloat(const StringBuilder* const str, float* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSB;
+		return SB_BLANK;
 	}
 
 	size_t i = start;
@@ -1158,7 +1177,7 @@ int sbToFloat(const StringBuilder* const str, float* result) {
 	if (p[i] == '-' || p[i] == '+') i++;
 
 	if (i < end && p[i] == '.') {
-		return NOTFLOAT;   // 不允许 ".5" 这种没有整数部分的格式
+		return SB_NOTFLOAT;   // 不允许 ".5" 这种没有整数部分的格式
 	}
 
 	for (; i < end; i++) {
@@ -1169,11 +1188,11 @@ int sbToFloat(const StringBuilder* const str, float* result) {
 			seenDot = true;
 		}
 		else {
-			return NOTFLOAT;
+			return SB_NOTFLOAT;
 		}
 	}
 
-	if (!seenDigit) return NOTFLOAT;
+	if (!seenDigit) return SB_NOTFLOAT;
 
 	// 调用标准库转换，从 p + start 开始
 	char* endptr = NULL;
@@ -1182,21 +1201,21 @@ int sbToFloat(const StringBuilder* const str, float* result) {
 
 	// 确认解析到有效片段末尾
 	if (endptr != p + end) {
-		return NOTFLOAT;
+		return SB_NOTFLOAT;
 	}
 
 	if (errno == ERANGE) {
-		return OVERFLOWFLOAT;
+		return SB_OVERFLOWFLOAT;
 	}
 
 	*result = value;
-	return SUCCEEDTOFLOAT;
+	return SB_SUCCEEDTOFLOAT;
 }
 
 int sbToDouble(const StringBuilder* const str, double* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSB;
-	if (getSbStatus(str))return WRONGSBSTATUS;
-	if (!result)return NULLDOUBLE;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return SB_EMPTY;
+	if (getSbStatus(str))return SB_WRONGSTATUS;
+	if (!result)return SB_NULLDOUBLE;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1208,7 +1227,7 @@ int sbToDouble(const StringBuilder* const str, double* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSB;
+		return SB_BLANK;
 	}
 
 	size_t i = start;
@@ -1218,7 +1237,7 @@ int sbToDouble(const StringBuilder* const str, double* result) {
 	if (p[i] == '-' || p[i] == '+') i++;
 
 	if (i < end && p[i] == '.') {
-		return NOTDOUBLE;   // 不允许 ".5" 这种没有整数部分的格式
+		return SB_NOTDOUBLE;   // 不允许 ".5" 这种没有整数部分的格式
 	}
 
 	for (; i < end; i++) {
@@ -1229,11 +1248,11 @@ int sbToDouble(const StringBuilder* const str, double* result) {
 			seenDot = true;
 		}
 		else {
-			return NOTDOUBLE;
+			return SB_NOTDOUBLE;
 		}
 	}
 
-	if (!seenDigit) return NOTDOUBLE;
+	if (!seenDigit) return SB_NOTDOUBLE;
 
 	// 调用标准库转换，从 p + start 开始
 	char* endptr = NULL;
@@ -1242,37 +1261,37 @@ int sbToDouble(const StringBuilder* const str, double* result) {
 
 	// 确认解析到有效片段末尾
 	if (endptr != p + end) {
-		return NOTDOUBLE;
+		return SB_NOTDOUBLE;
 	}
 
 	if (errno == ERANGE) {
-		return OVERFLOWDOUBLE;
+		return SB_OVERFLOWDOUBLE;
 	}
 
 	*result = value;
-	return SUCCEEDTODOUBLE;
+	return SB_SUCCEEDTODOUBLE;
 }
 
 int sbToLowerCase(StringBuilder* str) {
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
 
 	for (size_t i = 0; i < str->len; i++) {
 		str->buffer[i] = (char)tolower((unsigned char)str->buffer[i]);
 	}
 
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 int sbToUpperCase(StringBuilder* str) {
-	if (!str)return NULLSB;
-	if (!str->buffer)return NULLBUFFER;
+	if (!str)return SB_NULL;
+	if (!str->buffer)return SB_NULLBUFFER;
 
 	for (size_t i = 0; i < str->len; i++) {
 		str->buffer[i] = (char)toupper((unsigned char)str->buffer[i]);
 	}
 
-	return SUCCESSFULOP;
+	return SB_SUCCESSFULOP;
 }
 
 string sbToString(const StringBuilder* const str) {

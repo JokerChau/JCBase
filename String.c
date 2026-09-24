@@ -41,7 +41,7 @@ string newStringFrom(const char* const content) {
 
 	if (isNull) {
 		str->buffer = NULL;
-		str->status = NULLBUFFER;
+		str->status = STR_NULLBUFFER;
 		str->cachedLen = 0;
 		return str;
 	}
@@ -52,14 +52,14 @@ string newStringFrom(const char* const content) {
 	str->buffer = (char*)malloc(len + 1);
 	if (!str->buffer) {
 		str->buffer = NULL;
-		str->status = NULLBUFFER;
+		str->status = STR_NULLBUFFER;
 		str->cachedLen = 0;
 	}
 	// 若为buffer申请内存成功则更新状态并将长度设置为已知的len
 	else {
 		memcpy(str->buffer, content, len + 1);
 		str->cachedLen = len;
-		str->status = AVAILABLE;
+		str->status = STR_AVAILABLE;
 	}
 
 	return str;
@@ -85,7 +85,7 @@ void deleteString(string str) {
 /* =============================================================== */
 // 状态返回器，在使用实例前一定调用此函数检查实例状态是否可用，使用方法：if(!getStringStatus(str)){ // 该实例状态正常}
 int getStringStatus(const String* const str) {
-	if (!str)return NULLSTRING;
+	if (!str)return STR_NULL;
 	return str->status;
 }
 /* =============================================================== */
@@ -119,145 +119,145 @@ char* getStringContent(const String* const str) {
 /* =============================================================== */
 const char* stringStatusToCharArray(const int status) {
 	switch (status) {
-	case NULLSTRING: {
+	case STR_NULL: {
 		return "null string";
 	}
-	case AVAILABLE: {
+	case STR_AVAILABLE: {
 		return "available string";
 	}
-	case NULLBUFFER: {
+	case STR_NULLBUFFER: {
 		return "null buffer";
 	}
-	case EMPTYBUFFER: {
+	case STR_EMPTYBUFFER: {
 		return "buffer content null";
 	}
-	case EMPTYSTRING: {
+	case STR_EMPTY: {
 		return "empty string";
 	}
-	case BLANKSTRING: {
+	case STR_BLANK: {
 		return "blank string";
 	}
 
-	case FAILEDTOCOMBINE: {
+	case STR_FAILEDTOCOMBINE: {
 		return "failed to combine";
 	}
-	case WRONGSTRINGSTATUS: {
+	case STR_WRONGSTATUS: {
 		return "wrong string status";
 	}
-	case FAILEDTOREALLOC: {
+	case STR_FAILEDTOREALLOC: {
 		return "failed to realloc";
 	}
-	case FAILEDTOALLOC: {
+	case STR_FAILEDTOALLOC: {
 		return "failed to alloc";
 	}
 
-	case NULLINT: {
+	case STR_NULLINT: {
 		return "null int pointer";
 	}
-	case OVERFLOWINT: {
+	case STR_OVERFLOWINT: {
 		return "overflow int range";
 	}
-	case NOTINT: {
+	case STR_NOTINT: {
 		return "not int";
 	}
-	case SUCCEEDTOINT: {
+	case STR_SUCCEEDTOINT: {
 		return "succeed to change string into int";
 	}
 
-	case NULLLONG: {
+	case STR_NULLLONG: {
 		return "null long int pointer";
 	}
-	case OVERFLOWLONG: {
+	case STR_OVERFLOWLONG: {
 		return "overflow long int range";
 	}
-	case NOTLONG: {
+	case STR_NOTLONG: {
 		return "not long int";
 	}
-	case SUCCEEDTOLONG: {
+	case STR_SUCCEEDTOLONG: {
 		return "succeed to change string into long int";
 	}
 
-	case NULLLONGLONG: {
+	case STR_NULLLONGLONG: {
 		return "null long long int pointer";
 	}
-	case OVERFLOWLONGLONG: {
+	case STR_OVERFLOWLONGLONG: {
 		return "overflow long long int range";
 	}
-	case NOTLONGLONG: {
+	case STR_NOTLONGLONG: {
 		return "not long long int";
 	}
-	case SUCCEEDTOLONGLONG: {
+	case STR_SUCCEEDTOLONGLONG: {
 		return "succeed to change string into long long int";
 	}
 
-	case NULLFLOAT: {
+	case STR_NULLFLOAT: {
 		return "null float pointer";
 	}
-	case OVERFLOWFLOAT: {
+	case STR_OVERFLOWFLOAT: {
 		return "overflow float range";
 	}
-	case NOTFLOAT: {
+	case STR_NOTFLOAT: {
 		return "not float";
 	}
-	case SUCCEEDTOFLOAT: {
+	case STR_SUCCEEDTOFLOAT: {
 		return "succeed to change string into float";
 	}
 
-	case NULLDOUBLE: {
+	case STR_NULLDOUBLE: {
 		return "null double pointer";
 	}
-	case OVERFLOWDOUBLE: {
+	case STR_OVERFLOWDOUBLE: {
 		return "overflow double range";
 	}
-	case NOTDOUBLE: {
+	case STR_NOTDOUBLE: {
 		return "not double";
 	}
-	case SUCCEEDTODOUBLE: {
+	case STR_SUCCEEDTODOUBLE: {
 		return "succeed to change string into double";
 	}
 
-	case NULLCHAR: {
+	case STR_NULLCHAR: {
 		return "null char pointer";
 	}
-	case NULLARRAY: {
+	case STR_NULLARRAY: {
 		return "null string array";
 	}
 
-	case IDXOUTBOUNDS: {
+	case STR_IDXOUTBOUNDS: {
 		return "index out of bounds";
 	}
-	case SUCCESSFULIDX: {
+	case STR_SUCCESSFULIDX: {
 		return "succeed to use the index";
 	}
-	case SUCCEEDTOTRUNCATESTRING: {
+	case STR_SUCCEEDTOTRUNCATE: {
 		return "succeed to truncate the string";
 	}
-	case SUCCEEDTOFINDCH: {
+	case STR_SUCCEEDTOFINDCH: {
 		return "succeed to find the char you want";
 	}
-	case WITHOUTCH: {
+	case STR_WITHOUTCH: {
 		return "there is no char you want here";
 	}
-	case INVALIDSTART: {
+	case STR_INVALIDSTART: {
 		return "invalid start index";
 	}
-	case INVALIDEND: {
+	case STR_INVALIDEND: {
 		return "invalid end index";
 	}
-	case INVALIDIDX: {
+	case STR_INVALIDIDX: {
 		return "invalid index";
 	}
-	case INVALIDREPLACEMENT: {
+	case STR_INVALIDREPLACEMENT: {
 		return "what you want to replace with is invalid";
 	}
 
-	case NULLCOUNT: {
+	case STR_NULLCOUNT: {
 		return "count ptr null";
 	}
-	case SUCCESSFULOP: {
+	case STR_SUCCESSFULOP: {
 		return "successful operation";
 	}
-	case PARTIALSPLIT: {
+	case STR_PARTIALSPLIT: {
 		return "string partial split";
 	}
 	default: {
@@ -291,13 +291,13 @@ string appendString(const String* const str1, const String* const str2) {
 	size_t len1 = strlen(str1->buffer);
 	size_t len2 = strlen(str2->buffer);
 	char* combined = (char*)malloc(len1 + len2 + 1);
-	// 如果内容结合指针申请内存失败，则返回一个状态为FAILEDTOCOMBINE的实例
+	// 如果内容结合指针申请内存失败，则返回一个状态为STR_FAILEDTOCOMBINE的实例
 	if (!combined) {
 		string err = (string)malloc(sizeof(String));
 		// 如果连err都分配不了，则返回NULL，大多分配不了combined的情况应该都分配不了err
 		if (!err)return NULL;
 		err->buffer = NULL;
-		err->status = FAILEDTOCOMBINE;
+		err->status = STR_FAILEDTOCOMBINE;
 		err->cachedLen = 0;
 		return err;
 	}
@@ -312,7 +312,7 @@ string appendString(const String* const str1, const String* const str2) {
 		return NULL;
 	}
 	result->buffer = combined;
-	result->status = AVAILABLE;
+	result->status = STR_AVAILABLE;
 	result->cachedLen = len1 + len2;
 	return result;
 }
@@ -331,7 +331,7 @@ string appendStringFrom(const String* const str, const char* const content) {
 		string err = (string)malloc(sizeof(String));
 		if (!err)return NULL;
 		err->buffer = NULL;
-		err->status = FAILEDTOCOMBINE;
+		err->status = STR_FAILEDTOCOMBINE;
 		err->cachedLen = 0;
 		return err;
 	}
@@ -345,7 +345,7 @@ string appendStringFrom(const String* const str, const char* const content) {
 		return NULL;
 	}
 	result->buffer = combined;
-	result->status = AVAILABLE;
+	result->status = STR_AVAILABLE;
 	result->cachedLen = len1 + len2;
 
 	return result;
@@ -364,7 +364,7 @@ string reverseString(const String* const str) {
 	temp->buffer = (char*)malloc(len + 1);
 	if (!temp->buffer) {
 		temp->buffer = NULL;
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
@@ -377,33 +377,33 @@ string reverseString(const String* const str) {
 		temp->buffer[len - 1 - i] = c;
 	}
 
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = len;
 	return temp;
 }
 
 int splitString(const String* const str, char delimiter, string** outArray, size_t* count) {
-	if (!outArray)return NULLARRAY;
+	if (!outArray)return STR_NULLARRAY;
 	// 计数器为空
-	if (!count)return NULLCOUNT;
+	if (!count)return STR_NULLCOUNT;
 
 	*outArray = NULL;
 	*count = 0;
 
 	// 三种置空判断
-	if (!str)return NULLSTRING;
-	if (!str->buffer)return NULLBUFFER;
+	if (!str)return STR_NULL;
+	if (!str->buffer)return STR_NULLBUFFER;
 	if (str->buffer[0] == '\0') {
 		string* stringArray = (string*)malloc(sizeof(string));
-		if (!stringArray)return FAILEDTOALLOC;
+		if (!stringArray)return STR_FAILEDTOALLOC;
 		stringArray[0] = newStringFrom("");
 		if (!stringArray[0]) {
 			free(stringArray);
-			return FAILEDTOALLOC;
+			return STR_FAILEDTOALLOC;
 		}
 		*count = 1;
 		*outArray = stringArray;
-		return SUCCESSFULOP;
+		return STR_SUCCESSFULOP;
 	}
 
 	size_t len = strlen(str->buffer);
@@ -413,7 +413,7 @@ int splitString(const String* const str, char delimiter, string** outArray, size
 
 	string* stringArray = (string*)malloc(sizeof(string) * wholeCount);
 	if (!stringArray) {
-		return FAILEDTOALLOC;
+		return STR_FAILEDTOALLOC;
 	}
 
 	bool hasNull = false;
@@ -450,7 +450,7 @@ int splitString(const String* const str, char delimiter, string** outArray, size
 	*outArray = stringArray;
 	*count = wholeCount;
 
-	return hasNull ? PARTIALSPLIT : SUCCESSFULOP;
+	return hasNull ? STR_PARTIALSPLIT : STR_SUCCESSFULOP;
 }
 
 string trim(const String* const str) {
@@ -479,7 +479,7 @@ string trim(const String* const str) {
 	temp->buffer = (char*)malloc(newLen + 1);
 	if (!temp->buffer) {
 		temp->buffer = NULL;
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
@@ -487,7 +487,7 @@ string trim(const String* const str) {
 	memcpy(temp->buffer, str->buffer + start, newLen);
 	temp->buffer[newLen] = '\0';
 
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = newLen;
 	return temp;
 }
@@ -498,44 +498,44 @@ string clone(const String* const str) {
 }
 
 int charAt(const String* const str, size_t index, char* result) {
-	if (!result)return NULLCHAR;
+	if (!result)return STR_NULLCHAR;
 	if (!str) {
-		return NULLSTRING;
+		return STR_NULL;
 	}
 	if (!str->buffer) {
-		return NULLBUFFER;
+		return STR_NULLBUFFER;
 	}
-	if (index >= getStringLength(str))return IDXOUTBOUNDS;
+	if (index >= getStringLength(str))return STR_IDXOUTBOUNDS;
 
 	*result = str->buffer[index];
 
-	return SUCCESSFULIDX;
+	return STR_SUCCESSFULIDX;
 }
 
 int indexOfFront(const String* const str, char ch, size_t* result) {
-	if (!result)return NULLINT;
-	if (!str)return NULLSTRING;
-	if (!str->buffer)return NULLBUFFER;
+	if (!result)return STR_NULLINT;
+	if (!str)return STR_NULL;
+	if (!str->buffer)return STR_NULLBUFFER;
 
 	const char* found = strchr(str->buffer, ch);
 	if (found) {
 		*result = (size_t)(found - str->buffer);
-		return SUCCEEDTOFINDCH;
+		return STR_SUCCEEDTOFINDCH;
 	}
-	return WITHOUTCH;
+	return STR_WITHOUTCH;
 }
 
 int indexOfBack(const String* const str, char ch, size_t* result) {
-	if (!result)return NULLINT;
-	if (!str)return NULLSTRING;
-	if (!str->buffer)return NULLBUFFER;
+	if (!result)return STR_NULLINT;
+	if (!str)return STR_NULL;
+	if (!str->buffer)return STR_NULLBUFFER;
 	for (ptrdiff_t i = (ptrdiff_t)getStringLength(str) - 1; i >= 0; --i) {
 		if (str->buffer[i] == ch) {
 			*result = (size_t)i;
-			return SUCCEEDTOFINDCH;
+			return STR_SUCCEEDTOFINDCH;
 		}
 	}
-	return WITHOUTCH;
+	return STR_WITHOUTCH;
 }
 
 string subStringInLengthFront(const String* const str, size_t start, size_t length) {
@@ -546,7 +546,7 @@ string subStringInLengthFront(const String* const str, size_t start, size_t leng
 	size_t len = getStringLength(str);
 	if (start >= len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDSTART;
+		if (temp)temp->status = STR_INVALIDSTART;
 		return temp;
 	}
 
@@ -556,13 +556,13 @@ string subStringInLengthFront(const String* const str, size_t start, size_t leng
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -575,7 +575,7 @@ string subStringInLengthBack(const String* const str, size_t end, size_t length)
 	size_t len = getStringLength(str);
 	if (end >= len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDEND;
+		if (temp)temp->status = STR_INVALIDEND;
 		return temp;
 	}
 
@@ -585,13 +585,13 @@ string subStringInLengthBack(const String* const str, size_t end, size_t length)
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + (end - length + 1), length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -603,14 +603,14 @@ string subStringInRange(const String* const str, size_t start, size_t end) {
 
 	if (start > end) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDIDX;
+		if (temp)temp->status = STR_INVALIDIDX;
 		return temp;
 	}
 
 	size_t len = getStringLength(str);
 	if (start >= len || end > len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = IDXOUTBOUNDS;
+		if (temp)temp->status = STR_IDXOUTBOUNDS;
 		return temp;
 	}
 
@@ -619,13 +619,13 @@ string subStringInRange(const String* const str, size_t start, size_t end) {
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, str->buffer + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -637,7 +637,7 @@ string subStringInLengthFrontFrom(const char* const ch, size_t start, size_t len
 	size_t len = strlen(ch);
 	if (start >= len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDSTART;
+		if (temp)temp->status = STR_INVALIDSTART;
 		return temp;
 	}
 
@@ -647,13 +647,13 @@ string subStringInLengthFrontFrom(const char* const ch, size_t start, size_t len
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -665,7 +665,7 @@ string subStringInLengthBackFrom(const char* const ch, size_t end, size_t length
 	size_t len = strlen(ch);
 	if (end >= len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDEND;
+		if (temp)temp->status = STR_INVALIDEND;
 		return temp;
 	}
 
@@ -675,13 +675,13 @@ string subStringInLengthBackFrom(const char* const ch, size_t end, size_t length
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + (end - length + 1), length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -692,14 +692,14 @@ string subStringInRangeFrom(const char* const ch, size_t start, size_t end) {
 
 	if (start > end) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = INVALIDIDX;
+		if (temp)temp->status = STR_INVALIDIDX;
 		return temp;
 	}
 
 	size_t len = strlen(ch);
 	if (start >= len || end > len) {
 		string temp = newStringFrom("");
-		if (temp)temp->status = IDXOUTBOUNDS;
+		if (temp)temp->status = STR_IDXOUTBOUNDS;
 		return temp;
 	}
 
@@ -708,13 +708,13 @@ string subStringInRangeFrom(const char* const ch, size_t start, size_t end) {
 	if (!temp)return NULL;
 	temp->buffer = (char*)malloc(length + 1);
 	if (!temp->buffer) {
-		temp->status = NULLBUFFER;
+		temp->status = STR_NULLBUFFER;
 		temp->cachedLen = 0;
 		return temp;
 	}
 	memcpy(temp->buffer, ch + start, length);
 	temp->buffer[length] = '\0';
-	temp->status = AVAILABLE;
+	temp->status = STR_AVAILABLE;
 	temp->cachedLen = length;
 	return temp;
 }
@@ -723,7 +723,7 @@ string replaceFirst(const String* const str, const char* const target, const Str
 	if (!str)return NULL;
 	if (!replacement) {
 		string err = newStringFrom(str->buffer);
-		if (err)err->status = INVALIDREPLACEMENT;
+		if (err)err->status = STR_INVALIDREPLACEMENT;
 		return err;
 	}
 	return replaceFirstFrom(str, target, replacement->buffer);
@@ -733,7 +733,7 @@ string replaceAll(const String* const str, const char* const target, const Strin
 	if (!str)return NULL;
 	if (!replacement) {
 		string err = newStringFrom(str->buffer);
-		if (err)err->status = INVALIDREPLACEMENT;
+		if (err)err->status = STR_INVALIDREPLACEMENT;
 		return err;
 	}
 	return replaceAllFrom(str, target, replacement->buffer);
@@ -752,7 +752,7 @@ string replaceFirstFrom(const String* const str, const char* const target, const
 
 	if (!replacement) {
 		string err = newStringFrom(str->buffer);
-		if (err)err->status = INVALIDREPLACEMENT;
+		if (err)err->status = STR_INVALIDREPLACEMENT;
 		return err;
 	}
 
@@ -796,7 +796,7 @@ string replaceFirstFrom(const String* const str, const char* const target, const
 		return NULL;
 	}
 	tempStr->buffer = newBuffer;
-	tempStr->status = AVAILABLE;
+	tempStr->status = STR_AVAILABLE;
 	tempStr->cachedLen = newLen;
 	return tempStr;
 }
@@ -809,7 +809,7 @@ string replaceAllFrom(const String* const str, const char* const target, const c
 	if (str->buffer[0] == '\0' || target[0] == '\0')return newStringFrom(str->buffer);
 	if (!replacement) {
 		string err = newStringFrom(str->buffer);
-		if (err)err->status = INVALIDREPLACEMENT;
+		if (err)err->status = STR_INVALIDREPLACEMENT;
 		return err;
 	}
 
@@ -881,7 +881,7 @@ string replaceAllFrom(const String* const str, const char* const target, const c
 		return NULL;
 	}
 	result->buffer = newBuffer;
-	result->status = AVAILABLE;
+	result->status = STR_AVAILABLE;
 	result->cachedLen = newLen;
 	return result;
 }
@@ -993,9 +993,9 @@ char* toArray(const String* const str) {
 }
 
 int toInt(const String* const str, int* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSTRING;
-	if (getStringStatus(str))return WRONGSTRINGSTATUS;
-	if (!result)return NULLINT;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return STR_EMPTY;
+	if (getStringStatus(str))return STR_WRONGSTATUS;
+	if (!result)return STR_NULLINT;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1007,7 +1007,7 @@ int toInt(const String* const str, int* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSTRING;
+		return STR_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1025,31 +1025,31 @@ int toInt(const String* const str, int* result) {
 			int digit = p[i] - '0';
 
 			if (tempNum < (INT_MIN + digit) / 10) {
-				return OVERFLOWINT;
+				return STR_OVERFLOWINT;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTINT;
+			return STR_NOTINT;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOINT;
+		return STR_SUCCEEDTOINT;
 	}
 	else {
-		return NOTINT;
+		return STR_NOTINT;
 	}
 }
 
 int toLong(const String* const str, long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSTRING;
-	if (getStringStatus(str))return WRONGSTRINGSTATUS;
-	if (!result)return NULLLONG;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return STR_EMPTY;
+	if (getStringStatus(str))return STR_WRONGSTATUS;
+	if (!result)return STR_NULLLONG;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1061,7 +1061,7 @@ int toLong(const String* const str, long* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSTRING;
+		return STR_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1079,31 +1079,31 @@ int toLong(const String* const str, long* result) {
 			long digit = p[i] - '0';
 
 			if (tempNum < (LONG_MIN + digit) / 10) {
-				return OVERFLOWLONG;
+				return STR_OVERFLOWLONG;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTLONG;
+			return STR_NOTLONG;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOLONG;
+		return STR_SUCCEEDTOLONG;
 	}
 	else {
-		return NOTLONG;
+		return STR_NOTLONG;
 	}
 }
 
 int toLongLong(const String* const str, long long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSTRING;
-	if (getStringStatus(str))return WRONGSTRINGSTATUS;
-	if (!result)return NULLLONGLONG;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return STR_EMPTY;
+	if (getStringStatus(str))return STR_WRONGSTATUS;
+	if (!result)return STR_NULLLONGLONG;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1115,7 +1115,7 @@ int toLongLong(const String* const str, long long* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSTRING;
+		return STR_BLANK;
 	}
 
 	bool isNegative = false;
@@ -1133,31 +1133,31 @@ int toLongLong(const String* const str, long long* result) {
 			long long digit = p[i] - '0';
 
 			if (tempNum < (LLONG_MIN + digit) / 10) {
-				return OVERFLOWLONGLONG;
+				return STR_OVERFLOWLONGLONG;
 			}
 
 			tempNum = 10 * tempNum - digit;
 			numCount++;
 		}
 		else {
-			return NOTLONGLONG;
+			return STR_NOTLONGLONG;
 		}
 	}
 
 	if (numCount) {
 		if (isNegative)*result = tempNum;
 		else *result = -tempNum;
-		return SUCCEEDTOLONGLONG;
+		return STR_SUCCEEDTOLONGLONG;
 	}
 	else {
-		return NOTLONGLONG;
+		return STR_NOTLONGLONG;
 	}
 }
 
 int toFloat(const String* const str, float* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSTRING;
-	if (getStringStatus(str))return WRONGSTRINGSTATUS;
-	if (!result)return NULLFLOAT;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return STR_EMPTY;
+	if (getStringStatus(str))return STR_WRONGSTATUS;
+	if (!result)return STR_NULLFLOAT;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1169,7 +1169,7 @@ int toFloat(const String* const str, float* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSTRING;
+		return STR_BLANK;
 	}
 
 	size_t i = start;
@@ -1179,7 +1179,7 @@ int toFloat(const String* const str, float* result) {
 	if (p[i] == '-' || p[i] == '+') i++;
 
 	if (i < end && p[i] == '.') {
-		return NOTFLOAT;   // 不允许 ".5" 这种没有整数部分的格式
+		return STR_NOTFLOAT;   // 不允许 ".5" 这种没有整数部分的格式
 	}
 
 	for (; i < end; i++) {
@@ -1190,11 +1190,11 @@ int toFloat(const String* const str, float* result) {
 			seenDot = true;
 		}
 		else {
-			return NOTFLOAT;
+			return STR_NOTFLOAT;
 		}
 	}
 
-	if (!seenDigit) return NOTFLOAT;
+	if (!seenDigit) return STR_NOTFLOAT;
 
 	// 调用标准库转换，从 p + start 开始
 	char* endptr = NULL;
@@ -1203,21 +1203,21 @@ int toFloat(const String* const str, float* result) {
 
 	// 确认解析到有效片段末尾
 	if (endptr != p + end) {
-		return NOTFLOAT;
+		return STR_NOTFLOAT;
 	}
 
 	if (errno == ERANGE) {
-		return OVERFLOWFLOAT;
+		return STR_OVERFLOWFLOAT;
 	}
 
 	*result = value;
-	return SUCCEEDTOFLOAT;
+	return STR_SUCCEEDTOFLOAT;
 }
 
 int toDouble(const String* const str, double* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return EMPTYSTRING;
-	if (getStringStatus(str))return WRONGSTRINGSTATUS;
-	if (!result)return NULLDOUBLE;
+	if (!str || !str->buffer || str->buffer[0] == '\0')return STR_EMPTY;
+	if (getStringStatus(str))return STR_WRONGSTATUS;
+	if (!result)return STR_NULLDOUBLE;
 
 	const char* p = str->buffer;
 	size_t len = strlen(str->buffer);
@@ -1229,7 +1229,7 @@ int toDouble(const String* const str, double* result) {
 	while (end > start && isspace((unsigned char)p[end - 1]))end--;
 
 	if (start == end) {
-		return BLANKSTRING;
+		return STR_BLANK;
 	}
 
 	size_t i = start;
@@ -1239,7 +1239,7 @@ int toDouble(const String* const str, double* result) {
 	if (p[i] == '-' || p[i] == '+') i++;
 
 	if (i < end && p[i] == '.') {
-		return NOTDOUBLE;   // 不允许 ".5" 这种没有整数部分的格式
+		return STR_NOTDOUBLE;   // 不允许 ".5" 这种没有整数部分的格式
 	}
 
 	for (; i < end; i++) {
@@ -1250,11 +1250,11 @@ int toDouble(const String* const str, double* result) {
 			seenDot = true;
 		}
 		else {
-			return NOTDOUBLE;
+			return STR_NOTDOUBLE;
 		}
 	}
 
-	if (!seenDigit) return NOTDOUBLE;
+	if (!seenDigit) return STR_NOTDOUBLE;
 
 	// 调用标准库转换，从 p + start 开始
 	char* endptr = NULL;
@@ -1263,15 +1263,15 @@ int toDouble(const String* const str, double* result) {
 
 	// 确认解析到有效片段末尾
 	if (endptr != p + end) {
-		return NOTDOUBLE;
+		return STR_NOTDOUBLE;
 	}
 
 	if (errno == ERANGE) {
-		return OVERFLOWDOUBLE;
+		return STR_OVERFLOWDOUBLE;
 	}
 
 	*result = value;
-	return SUCCEEDTODOUBLE;
+	return STR_SUCCEEDTODOUBLE;
 }
 
 string toLowerCase(const String* const str) {
@@ -1287,7 +1287,7 @@ string toLowerCase(const String* const str) {
 	newOne->buffer = (char*)malloc(len + 1);
 	if (!newOne->buffer) {
 		newOne->buffer = NULL;
-		newOne->status = NULLBUFFER;
+		newOne->status = STR_NULLBUFFER;
 		newOne->cachedLen = 0;
 		return newOne;
 	}
@@ -1298,7 +1298,7 @@ string toLowerCase(const String* const str) {
 		newOne->buffer[i] = tolower((unsigned char)newOne->buffer[i]);
 	}
 
-	newOne->status = AVAILABLE;
+	newOne->status = STR_AVAILABLE;
 	newOne->cachedLen = len;
 	return newOne;
 }
@@ -1316,7 +1316,7 @@ string toUpperCase(const String* const str) {
 	newOne->buffer = (char*)malloc(len + 1);
 	if (!newOne->buffer) {
 		newOne->buffer = NULL;
-		newOne->status = NULLBUFFER;
+		newOne->status = STR_NULLBUFFER;
 		newOne->cachedLen = 0;
 		return newOne;
 	}
@@ -1327,7 +1327,7 @@ string toUpperCase(const String* const str) {
 		newOne->buffer[i] = toupper((unsigned char)newOne->buffer[i]);
 	}
 
-	newOne->status = AVAILABLE;
+	newOne->status = STR_AVAILABLE;
 	newOne->cachedLen = len;
 	return newOne;
 }
@@ -1345,7 +1345,7 @@ string readLine() {
 
 	str->buffer = (char*)calloc(INITIAL_STRING_SIZE, sizeof(char));
 	if (!str->buffer) {
-		str->status = NULLBUFFER;
+		str->status = STR_NULLBUFFER;
 		str->buffer = NULL;
 		str->cachedLen = 0;
 		return str;
@@ -1360,7 +1360,7 @@ string readLine() {
 			if (capacity > SIZE_MAX / GROWTH) {
 				free(str->buffer);
 				str->buffer = NULL;
-				str->status = FAILEDTOREALLOC;
+				str->status = STR_FAILEDTOREALLOC;
 				str->cachedLen = 0;
 				return str;
 			}
@@ -1369,7 +1369,7 @@ string readLine() {
 			if (!newBuffer) {
 				free(str->buffer);
 				str->buffer = NULL;
-				str->status = FAILEDTOREALLOC;
+				str->status = STR_FAILEDTOREALLOC;
 				str->cachedLen = 0;
 				return str;
 			}
@@ -1381,7 +1381,7 @@ string readLine() {
 
 	str->buffer[len] = '\0';
 	
-	str->status = AVAILABLE;
+	str->status = STR_AVAILABLE;
 	str->cachedLen = len;
 
 	return str;
