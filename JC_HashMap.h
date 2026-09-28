@@ -6,13 +6,16 @@
 #include <stdbool.h>
 #include "HashMapSrc.h"
 
+typedef struct HashMapRegistry HashMapRegistry;
+
 typedef struct hashMap {
-	uint64_t identifier;
+	HashMapRegistry* reg;
+	uint64_t slot;
+	uint64_t generation;
 }hashMap;
 
 typedef struct hashMapStatusReport {
 	bool valid;
-	int lastCreateStatus;
 	int instanceStatus;
 }hashMapStatusReport;
 
@@ -21,9 +24,13 @@ typedef int (*compareFunction)(const void* keyA, const void* keyB, size_t keySiz
 
 //static const hashMap invalidHashMap = { 0 };
 
-static inline bool hmHasIdentifier(hashMap handle) {
-	return handle.identifier != 0;
+static inline bool hmIsValid(hashMap handle) {
+	return handle.reg != NULL && handle.slot != 0;
 }
+
+wheels HashMapRegistry* hmRegistryCreate(void);
+
+wheels void hmRegistryDestroy(HashMapRegistry* reg);
 
 wheels hashMapStatusReport hmGetStatusReport(hashMap handle);
 
@@ -33,10 +40,10 @@ wheels hashMapStatusReport hmGetStatusReport(hashMap handle);
 // 直接调用它可能传入不匹配的 hash/compare，导致运行时崩溃。
 // 永远使用 hmCreate 宏。
 // ============================================================
-wheels hashMap hmNew(size_t keySize, size_t valueSize,
+wheels hashMap hmNew(HashMapRegistry* reg, size_t keySize, size_t valueSize,
 	hashFunction hash, compareFunction compare);
 
-wheels int hmGetLastCreateStatus(void);
+wheels int hmGetLastCreateStatus(HashMapRegistry* reg);
 
 wheels void hmDestroy(hashMap* handle);
 
@@ -56,7 +63,7 @@ wheels size_t hmGetBucketCount(hashMap handle);
 
 wheels int hmGetStatus(hashMap handle);
 
-wheels const char* hmStatusToArray(int status);
+wheels const char* hmStatusToCharArray(int status);
 
 // char* 内容哈希和比较，供 hmNew 宏和调用方使用
 wheels size_t hashCString(const void* key, size_t keySize);
@@ -68,7 +75,7 @@ wheels int compareCString(const void* keyA, const void* keyB, size_t keySize);
 // 用法：
 //   int key;
 //   char* value;
-//   hashMap map = hmCreate(&key, &value, NULL, NULL);
+//   hashMap map = hmCreate(reg, &key, &value, NULL, NULL);
 //
 //   char* key2;
 //   char* value2;
@@ -81,8 +88,8 @@ wheels int compareCString(const void* keyA, const void* keyB, size_t keySize);
 // 第四个和第五个参数是给调用方自定义类型准备的。
 // 如果 key 类型已经在上面的 _Generic 列表里，这两个参数传 NULL, NULL。
 // ============================================================
-#define hmCreate(keyPointer, valuePointer, customHash, customCompare) \
-	hmNew( \
+#define hmCreate(reg, keyPointer, valuePointer, customHash, customCompare) \
+	hmNew(reg, \
 		sizeof(*(keyPointer)), \
 		sizeof(*(valuePointer)), \
 		_Generic((keyPointer), \

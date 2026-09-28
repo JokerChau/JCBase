@@ -32,7 +32,7 @@
 - 泛型键值对存储（keySize / valueSize 指定）
 - 拉链法解决冲突，支持扩缩容
 - 支持自定义哈希函数和比较函数，`char*` 键按内容比较
-- **句柄机制**：对外暴露 `uint64_t identifier` 而非裸指针，从设计上解决别名、double free、use-after-free 问题
+- **句柄机制**：对外暴露 句柄结构体 而非裸指针，从设计上尽量解决别名、double free、use-after-free 问题
 - 提供 `hmCreate` 宏做类型安全的构造入口
 
 **输入辅助（Scanner）**
@@ -202,11 +202,13 @@
 
 | 返回类型 | 函数 / 宏 | 说明 |
 |---|---|---|
-| `bool` | `hmHasIdentifier(hashMap handle)` | `static inline`，检查句柄是否非 0 |
+| `bool` | `hmIsValid(hashMap handle)` | `static inline`，检查句柄是否非 0 |
+| `HashMapRegistry*` | `hmRegistryCreate(void)` | 创建注册表 |
+| `void` | `hmRegistryDestroy(HashMapRegistry* reg)` | 销毁注册表 |
 | `hashMapStatusReport` | `hmGetStatusReport(hashMap handle)` | 返回句柄有效、创建状态、实例状态 |
 | `hashMap` | `hmNew(size_t keySize, size_t valueSize, hashFunction hash, compareFunction compare)` | 内部构造器，不建议直接调用 |
-| `hashMap` | `hmCreate(keyPointer, valuePointer, customHash, customCompare)` | 唯一对外构造宏 |
-| `int` | `hmGetLastCreateStatus(void)` | 获取最近一次创建状态 |
+| `hashMap` | `hmCreate(reg, keyPointer, valuePointer, customHash, customCompare)` | 唯一对外构造宏 |
+| `int` | `hmGetLastCreateStatus(HashMapRegistry* reg)` | 获取最近一次创建状态 |
 | `void` | `hmDestroy(hashMap* handle)` | 销毁实例，并将句柄置 0 |
 | `int` | `hmPut(hashMap handle, const void* key, const void* value)` | 插入或覆盖键值对 |
 | `int` | `hmGet(hashMap handle, const void* key, void* outValue)` | 获取 value |
@@ -216,7 +218,7 @@
 | `size_t` | `hmGetCount(hashMap handle)` | 获取键值对数量 |
 | `size_t` | `hmGetBucketCount(hashMap handle)` | 获取桶数量 |
 | `int` | `hmGetStatus(hashMap handle)` | 获取实例状态 |
-| `const char*` | `hmStatusToArray(int status)` | 状态码转描述 |
+| `const char*` | `hmStatusToCharArray(int status)` | 状态码转描述 |
 | `size_t` | `hashCString(const void* key, size_t keySize)` | `char*` 键按内容哈希 |
 | `int` | `compareCString(const void* keyA, const void* keyB, size_t keySize)` | `char*` 键按内容比较 |
 
@@ -247,7 +249,7 @@
 ### String 基本操作
 
 ```c
-#include "String.h"
+#include "JC_String.h"
 #include <stdio.h>
 
 int main() {
@@ -276,7 +278,7 @@ int main() {
 ### ArrayList 操作
 
 ```c
-#include "ArrayList.h"
+#include "JC_ArrayList.h"
 #include <stdio.h>
 
 int main() {
@@ -306,73 +308,126 @@ int main() {
 ### HashMap 操作
 
 ```c
-#include "HashMap.h"
+#include "JC_HashMap.h"
 #include <stdio.h>
+#include <string.h>
 
-int main() {
-    // key 是 int，value 是 char*
-    int key = 42;
-    char* value = "hello";
-
-    hashMap map = hmCreate(&key, &value, NULL, NULL);
-    // 展开成 hmNew(sizeof(int), sizeof(char*), NULL, NULL)
-
-    if (!hmHasIdentifier(map)) {
-        fprintf(stderr, "HashMap creation failed: %s\n",
-                hmStatusToArray(hmGetLastCreateStatus()));
+int main(void)
+{
+    /* -------------------------------------------------- */
+    /* 1. 创建注册表                                      */
+    /* -------------------------------------------------- */
+    HashMapRegistry* reg = hmRegistryCreate();
+    if (!reg) {
+        fprintf(stderr, "failed to create registry\n");
         return 1;
     }
 
-    if (hmGetStatus(map) != AVAILABLEHM) {
-        fprintf(stderr, "Instance status: %s\n",
-                hmStatusToArray(hmGetStatus(map)));
-        hmDestroy(&map);
+    /* -------------------------------------------------- */
+    /* 2. 创建一个 int -> int 的 map                      */
+    /*    hmCreate 第一个参数是 registry                  */
+    /*    key 是 int*，value 是 int*，所以传 NULL, NULL   */
+    /*    表示用默认的 fnv1a + memcmp                     */
+    /* -------------------------------------------------- */
+    int  key   = 0;   /* 仅用于取类型 */
+    int  value = 0;
+    hashMap scores = hmCreate(reg, &key, &value, NULL, NULL);
+
+    if (!hmIsValid(scores)) {
+        fprintf(stderr, "failed to create map: %s\n",
+                hmStatusToCharArray(hmGetLastCreateStatus(reg)));
+        hmRegistryDestroy(reg);
         return 1;
     }
 
-    hmPut(map, &key, &value);
+    /* -------------------------------------------------- */
+    /* 3. 插入                                            */
+    /*    hmPut 按值拷贝 key 和 value                     */
+    /* -------------------------------------------------- */
+    int k, v;
 
-    char* out = NULL;
-    if (hmGet(map, &key, &out) == SUCCESSFULOP) {
-        printf("Value: %s\n", out);
+    k = 1; v = 100;  hmPut(scores, &k, &v);
+    k = 2; v = 200;  hmPut(scores, &k, &v);
+    k = 3; v = 300;  hmPut(scores, &k, &v);
+
+    printf("count = %zu\n", hmGetCount(scores));      /* 3 */
+    printf("buckets = %zu\n", hmGetBucketCount(scores));
+
+    /* -------------------------------------------------- */
+    /* 4. 查询                                            */
+    /*    hmGet 把 value 拷贝到 out                       */
+    /* -------------------------------------------------- */
+    k = 2;
+    int out = 0;
+    if (hmGet(scores, &k, &out) == HM_SUCCESSFULOP) {
+        printf("key 2 -> %d\n", out);                 /* 200 */
     }
 
-    hmDestroy(&map);
+    /* -------------------------------------------------- */
+    /* 5. 判断 key 是否存在                               */
+    /* -------------------------------------------------- */
+    k = 3;
+    if (hmContains(scores, &k) == HM_SUCCESSFULOP) {
+        printf("key 3 exists\n");
+    }
+
+    /* -------------------------------------------------- */
+    /* 6. 删除单个 key                                    */
+    /* -------------------------------------------------- */
+    k = 1;
+    hmRemove(scores, &k);
+    printf("after remove, count = %zu\n", hmGetCount(scores));  /* 2 */
+
+    /* -------------------------------------------------- */
+    /* 7. 清空 map（保留容量）                            */
+    /* -------------------------------------------------- */
+    hmClear(scores);
+    printf("after clear, count = %zu\n", hmGetCount(scores));   /* 0 */
+
+    /* -------------------------------------------------- */
+    /* 8. 销毁句柄                                        */
+    /*    hmDestroy 接受 hashMap*，销毁后句柄清零         */
+    /* -------------------------------------------------- */
+    hmDestroy(&scores);
+    printf("scores valid after destroy: %d\n", hmIsValid(scores)); /* 0 */
+
+    /* -------------------------------------------------- */
+    /* 9. 字符串 key 的 map                               */
+    /*    key 类型是 char*，_Generic 会选 hashCString 和  */
+    /*    compareCString，按字符串内容比较                */
+    /* -------------------------------------------------- */
+    char* nameKey   = NULL;
+    int   nameValue = 0;
+    hashMap byName = hmCreate(reg, &nameKey, &nameValue, NULL, NULL);
+
+    char* n;
+    int   nv;
+
+    n = "alice"; nv = 20; hmPut(byName, &n, &nv);
+    n = "bob";   nv = 25; hmPut(byName, &n, &nv);
+    n = "carol"; nv = 30; hmPut(byName, &n, &nv);
+
+    /* 查询：用另一个内容相同的指针也能命中 */
+    char* search = "alice";
+    int   age    = 0;
+    if (hmGet(byName, &search, &age) == HM_SUCCESSFULOP) {
+        printf("alice is %d\n", age);                 /* 20 */
+    }
+
+    hmDestroy(&byName);
+
+    /* -------------------------------------------------- */
+    /* 10. 销毁注册表                                     */
+    /*     内部会回收所有残留的 map（即便上面忘了         */
+    /*     hmDestroy 某个句柄也不会泄漏 map 本身）        */
+    /* -------------------------------------------------- */
+    hmRegistryDestroy(reg);
+
     return 0;
 }
 ```
 
 **HashMap 用 char\* 作 key（按内容比较）**：
-
-```c
-char* key = "大王";
-char* value = "李**";
-
-hashMap map = hmCreate(&key, &value, NULL, NULL);
-// 展开成 hmNew(sizeof(char*), sizeof(char*), hashCString, compareCString)
-// 两个内容相同、地址不同的 char* 会被当作同一个 key
-
-hmPut(map, &key, &value);
-
-char* searchKey = "大王";   // 不同地址
-char* out = NULL;
-hmGet(map, &searchKey, &out);   // 找得到
-```
-
-**HashMap 别名安全示例**：
-
-```c
-int key = 1;
-char* value = "a";
-
-hashMap map1 = hmCreate(&key, &value, NULL, NULL);
-hashMap map2 = map1;   // 复制句柄
-
-hmDestroy(&map1);       // 释放，map1 置 0
-
-hmPut(map2, &key, &value);   // 查注册表失败 → 返回 NULLHM，不会崩
-hmDestroy(&map2);            // 安全返回，不会 double free
-```
 
 ### 读取一行输入
 
@@ -423,13 +478,11 @@ if (alGetStatus(list) != AVAILABLEAL) {
 
 ### 4. HashMap 的句柄机制
 
-HashMap 对外暴露的不是裸指针，而是一个只含 `uint64_t identifier` 的值句柄。这个设计解决了几个常见问题：
+HashMap 对外暴露的不是裸指针，而是一个句柄。这个设计被用于尽力解决几个常见问题：
 
 - **别名**：`map2 = map1` 只是复制 identifier，释放 `map1` 后 `map2` 自动失效，不会 double free 或 use-after-free。
 - **ABA**：identifier 全局递增、不复用，旧 identifier 永远查不到。
 - **无效句柄**：所有操作先查内部注册表，查不到就返回 `NULLHM`。
-
-**关于 `hmHasIdentifier`**：它只检查句柄是否被赋值过（`identifier != 0`），**不保证**实例存在，也不保证实例可用。要确认实例状态，用 `hmGetStatus` 或 `hmGetStatusReport`。
 
 ### 5. 扩容策略
 
@@ -454,7 +507,7 @@ HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容
 ## 后续更新计划
 
 - **AL**：解决别名问题、线程安全
-- **HM**：每实例独立创建状态（替代当前全局 `lastCreateStatus`）、线程安全
+- **HM**：线程安全
 - **LL**：写出框架、解决别名问题
 - **SB**：线程安全
 - **String**：改为真正不可变、解决别名问题、线程安全
