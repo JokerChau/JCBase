@@ -1,356 +1,79 @@
 #include "JC_HashMap.h"
+#include "RegistryCore.h"
 #include <stdlib.h>
 #include <string.h>
 
-#define INITIAL_BUCKET_COUNT 16
-#define MIN_BUCKET_COUNT 16
-
-// ============================================================
-// 内部结构：RealHashMap
-// ============================================================
-
-typedef struct HashMapNode {
-    void* key;
-    void* value;
-    struct HashMapNode* next;
-} HashMapNode;
-
-typedef struct RealHashMap {
-    HashMapNode** buckets;
-    size_t bucketCount;
-    size_t elementCount;
-    size_t keySize;
-    size_t valueSize;
-    hashFunction hash;
-    compareFunction compare;
-    int status;
-} RealHashMap;
-
-// ============================================================
-// 空闲 slot 条目：generation 直接存这里，不另开数组
-// ============================================================
-
-typedef struct FreeSlot {
-    uint64_t slot;
-    uint64_t nextGen;
-} FreeSlot;
-
-// ============================================================
-// 注册表上下文：所有状态都在这里，没有任何全局变量
-// ============================================================
+/* ============================================================
+ * HashMapRegistry：每个 HashMap 注册表持有一个 RegistryCore
+ * ============================================================ */
 
 struct HashMapRegistry {
-    RealHashMap* registry;
-    uint64_t nextSlot;
-    FreeSlot* freeSlots;
-    size_t freeTop;
-    size_t freeCapacity;
+    RegistryCore* core;
     int lastCreateStatus;
 };
 
-// ============================================================
-// 默认哈希函数 FNV-1a
-// ============================================================
-
-static size_t fnv1a(const void* data, size_t size) {
-    const unsigned char* bytes = (const unsigned char*)data;
-    size_t hash = 14695981039346656037ULL;
-    for (size_t i = 0; i < size; ++i) {
-        hash ^= bytes[i];
-        hash *= 1099511628211ULL;
+/* 把 RegistryCore 的哈希表状态码翻译成 HashMap 的对外状态码 */
+static int translateRhmStatus(int rhmStatus) {
+    switch (rhmStatus) {
+    case RHM_SUCCESSFULOP:  return HM_SUCCESSFULOP;
+    case RHM_NULL:          return HM_NULL;
+    case RHM_MALLOCFAIL:    return HM_MALLOCFAIL;
+    case RHM_NULLKEY:       return HM_NULLKEY;
+    case RHM_NULLVALUE:     return HM_NULLVALUE;
+    case RHM_NULLOUTVALUE:  return HM_NULLOUTVALUE;
+    case RHM_KEYNOTFOUND:   return HM_KEYNOTFOUND;
+    case RHM_EXPANDFAILED:  return HM_EXPANDFAILED;
+    case RHM_WRONGSTATUS:   return HM_WRONGSTATUS;
+    default:                return HM_WRONGSTATUS;
     }
-    return hash;
 }
 
-// ============================================================
-// RealHashMap 内部操作
-// ============================================================
+/* ============================================================
+ * 注册表生命周期
+ * ============================================================ */
 
-static int realHmResize(RealHashMap* map, size_t newBucketCount) {
-    if (newBucketCount < MIN_BUCKET_COUNT) newBucketCount = MIN_BUCKET_COUNT;
-
-    HashMapNode** newBuckets = (HashMapNode**)calloc(newBucketCount, sizeof(HashMapNode*));
-    if (!newBuckets) return HM_MALLOCFAIL;
-
-    for (size_t i = 0; i < map->bucketCount; ++i) {
-        HashMapNode* node = map->buckets[i];
-        while (node) {
-            HashMapNode* next = node->next;
-            size_t h = map->hash(node->key, map->keySize);
-            size_t bucket = h & (newBucketCount - 1);
-            node->next = newBuckets[bucket];
-            newBuckets[bucket] = node;
-            node = next;
-        }
-    }
-
-    free(map->buckets);
-    map->buckets = newBuckets;
-    map->bucketCount = newBucketCount;
-    return HM_SUCCESSFULOP;
+static void destroyRealHashMapValue(void* value, void* userData) {
+    (void)userData;
+    realHmDestroy((RealHashMap*)value);
 }
-
-static RealHashMap* realHmCreate(size_t keySize, size_t valueSize,
-    hashFunction hash, compareFunction compare) {
-
-    RealHashMap* map = (RealHashMap*)malloc(sizeof(RealHashMap));
-    if (!map) return NULL;
-
-    map->bucketCount = INITIAL_BUCKET_COUNT;
-    map->elementCount = 0;
-    map->keySize = keySize;
-    map->valueSize = valueSize;
-    map->hash = hash ? hash : fnv1a;
-    map->compare = compare ? compare : memcmp;
-    map->status = HM_AVAILABLE;
-
-    map->buckets = (HashMapNode**)calloc(map->bucketCount, sizeof(HashMapNode*));
-    if (!map->buckets) {
-        free(map);
-        return NULL;
-    }
-    return map;
-}
-
-static void realHmDestroy(RealHashMap* map) {
-    if (!map) return;
-    for (size_t i = 0; i < map->bucketCount; ++i) {
-        HashMapNode* node = map->buckets[i];
-        while (node) {
-            HashMapNode* next = node->next;
-            free(node->key);
-            free(node->value);
-            free(node);
-            node = next;
-        }
-    }
-    free(map->buckets);
-    free(map);
-}
-
-static int realHmPut(RealHashMap* map, const void* key, const void* value) {
-    if (!map) return HM_NULL;
-    if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
-    if (!key) return HM_NULLKEY;
-    if (!value) return HM_NULLVALUE;
-
-    size_t h = map->hash(key, map->keySize);
-    size_t bucket = h & (map->bucketCount - 1);
-
-    HashMapNode* node = map->buckets[bucket];
-    while (node) {
-        if (map->compare(node->key, key, map->keySize) == 0) {
-            void* newValue = malloc(map->valueSize);
-            if (!newValue) return HM_MALLOCFAIL;
-            memcpy(newValue, value, map->valueSize);
-            free(node->value);
-            node->value = newValue;
-            return HM_SUCCESSFULOP;
-        }
-        node = node->next;
-    }
-
-    HashMapNode* newNode = (HashMapNode*)malloc(sizeof(HashMapNode));
-    if (!newNode) return HM_MALLOCFAIL;
-
-    newNode->key = malloc(map->keySize);
-    if (!newNode->key) {
-        free(newNode);
-        return HM_MALLOCFAIL;
-    }
-
-    newNode->value = malloc(map->valueSize);
-    if (!newNode->value) {
-        free(newNode->key);
-        free(newNode);
-        return HM_MALLOCFAIL;
-    }
-
-    memcpy(newNode->key, key, map->keySize);
-    memcpy(newNode->value, value, map->valueSize);
-
-    newNode->next = map->buckets[bucket];
-    map->buckets[bucket] = newNode;
-    map->elementCount++;
-
-    if (map->elementCount * 4 > map->bucketCount * 3) {
-        int resizeStatus = realHmResize(map, map->bucketCount * 2);
-        if (resizeStatus != HM_SUCCESSFULOP) {
-            return HM_EXPANDFAILED;
-        }
-    }
-
-    return HM_SUCCESSFULOP;
-}
-
-static int realHmGet(RealHashMap* map, const void* key, void* outValue) {
-    if (!map) return HM_NULL;
-    if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
-    if (!key) return HM_NULLKEY;
-    if (!outValue) return HM_NULLOUTVALUE;
-
-    size_t h = map->hash(key, map->keySize);
-    size_t bucket = h & (map->bucketCount - 1);
-
-    HashMapNode* node = map->buckets[bucket];
-    while (node) {
-        if (map->compare(node->key, key, map->keySize) == 0) {
-            memcpy(outValue, node->value, map->valueSize);
-            return HM_SUCCESSFULOP;
-        }
-        node = node->next;
-    }
-    return HM_KEYNOTFOUND;
-}
-
-static int realHmRemove(RealHashMap* map, const void* key) {
-    if (!map) return HM_NULL;
-    if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
-    if (!key) return HM_NULLKEY;
-
-    size_t h = map->hash(key, map->keySize);
-    size_t bucket = h & (map->bucketCount - 1);
-
-    HashMapNode** link = &map->buckets[bucket];
-    while (*link) {
-        HashMapNode* node = *link;
-        if (map->compare(node->key, key, map->keySize) == 0) {
-            *link = node->next;
-            free(node->key);
-            free(node->value);
-            free(node);
-            map->elementCount--;
-            return HM_SUCCESSFULOP;
-        }
-        link = &node->next;
-    }
-    return HM_KEYNOTFOUND;
-}
-
-static int realHmContains(RealHashMap* map, const void* key) {
-    if (!map) return HM_NULL;
-    if (map->status != HM_AVAILABLE) return HM_WRONGSTATUS;
-    if (!key) return HM_NULLKEY;
-
-    size_t h = map->hash(key, map->keySize);
-    size_t bucket = h & (map->bucketCount - 1);
-
-    HashMapNode* node = map->buckets[bucket];
-    while (node) {
-        if (map->compare(node->key, key, map->keySize) == 0) {
-            return HM_SUCCESSFULOP;
-        }
-        node = node->next;
-    }
-    return HM_KEYNOTFOUND;
-}
-
-static int realHmClear(RealHashMap* map) {
-    if (!map) return HM_NULL;
-
-    for (size_t i = 0; i < map->bucketCount; ++i) {
-        HashMapNode* node = map->buckets[i];
-        while (node) {
-            HashMapNode* next = node->next;
-            free(node->key);
-            free(node->value);
-            free(node);
-            node = next;
-        }
-        map->buckets[i] = NULL;
-    }
-    map->elementCount = 0;
-    return HM_SUCCESSFULOP;
-}
-
-// ============================================================
-// 空闲栈操作
-// ============================================================
-
-static bool freeSlotsPush(HashMapRegistry* reg, uint64_t slot, uint64_t nextGen) {
-    if (reg->freeTop == reg->freeCapacity) {
-        size_t newCap = reg->freeCapacity == 0 ? 16 : reg->freeCapacity * 2;
-        if (newCap > SIZE_MAX / sizeof(FreeSlot)) return false;
-        FreeSlot* newArr = (FreeSlot*)realloc(reg->freeSlots, newCap * sizeof(FreeSlot));
-        if (!newArr) return false;
-        reg->freeSlots = newArr;
-        reg->freeCapacity = newCap;
-    }
-    reg->freeSlots[reg->freeTop].slot = slot;
-    reg->freeSlots[reg->freeTop].nextGen = nextGen;
-    reg->freeTop++;
-    return true;
-}
-
-static bool freeSlotsPop(HashMapRegistry* reg, uint64_t* slot, uint64_t* gen) {
-    if (reg->freeTop == 0) return false;
-    reg->freeTop--;
-    *slot = reg->freeSlots[reg->freeTop].slot;
-    *gen = reg->freeSlots[reg->freeTop].nextGen;
-    return true;
-}
-
-// ============================================================
-// 注册表生命周期
-// ============================================================
 
 HashMapRegistry* hmRegistryCreate(void) {
     HashMapRegistry* reg = (HashMapRegistry*)malloc(sizeof(HashMapRegistry));
     if (!reg) return NULL;
 
-    reg->registry = realHmCreate(sizeof(hashMap), sizeof(RealHashMap*), NULL, NULL);
-    if (!reg->registry) {
+    reg->core = registryCoreCreate();
+    if (!reg->core) {
         free(reg);
         return NULL;
     }
-
-    reg->nextSlot = 1;
-    reg->freeSlots = NULL;
-    reg->freeTop = 0;
-    reg->freeCapacity = 0;
     reg->lastCreateStatus = HM_SUCCESSFULOP;
-
     return reg;
 }
 
 void hmRegistryDestroy(HashMapRegistry* reg) {
     if (!reg) return;
-    if (reg->registry) {
-        for (size_t i = 0; i < reg->registry->bucketCount; ++i) {
-            HashMapNode* node = reg->registry->buckets[i];
-            while (node) {
-                RealHashMap* real = *(RealHashMap**)node->value;
-                realHmDestroy(real);
-                node = node->next;
-            }
-        }
-        realHmDestroy(reg->registry);
-        reg->registry = NULL;
+    if (reg->core) {
+        /* 兜底：销毁所有残留的 map */
+        registryCoreForEach(reg->core, destroyRealHashMapValue, NULL);
+        registryCoreDestroy(reg->core);
+        reg->core = NULL;
     }
-    free(reg->freeSlots);
-    reg->freeSlots = NULL;
-    reg->freeTop = 0;
-    reg->freeCapacity = 0;
     free(reg);
 }
 
-// ============================================================
-// 句柄解析
-// ============================================================
+/* ============================================================
+ * 句柄解析
+ * ============================================================ */
 
 static RealHashMap* resolveHandle(hashMap handle) {
     if (!handle.reg || handle.slot == 0) return NULL;
-
-    RealHashMap* real = NULL;
-    if (realHmGet(handle.reg->registry, &handle, &real) != HM_SUCCESSFULOP) {
-        return NULL;
-    }
-    return real;
+    Handle h = { handle.slot, handle.generation };
+    return (RealHashMap*)registryCoreResolve(handle.reg->core, h);
 }
 
-// ============================================================
-// 对外接口实现
-// ============================================================
+/* ============================================================
+ * 对外接口
+ * ============================================================ */
 
 hashMap hmNew(HashMapRegistry* reg, size_t keySize, size_t valueSize,
     hashFunction hash, compareFunction compare) {
@@ -359,42 +82,29 @@ hashMap hmNew(HashMapRegistry* reg, size_t keySize, size_t valueSize,
     if (!reg) return invalid;
     reg->lastCreateStatus = HM_SUCCESSFULOP;
 
-    RealHashMap* real = realHmCreate(keySize, valueSize, hash, compare);
+    if (keySize == 0 || valueSize == 0) {
+        reg->lastCreateStatus = HM_INVALIDSIZE;
+        return invalid;
+    }
+
+    RealHashMap* real = realHmCreate(keySize, valueSize, (realHashFunction)hash, (rhmCompareFunction)compare);
     if (!real) {
         reg->lastCreateStatus = HM_MALLOCFAIL;
         return invalid;
     }
 
-    if (keySize == 0 || valueSize == 0) {
+    Handle h;
+    int regStatus = registryCoreInsert(reg->core, real, &h);
+    if (regStatus != REG_SUCCESSFULOP) {
         realHmDestroy(real);
-        reg->lastCreateStatus = HM_INVALIDSIZE;
+        reg->lastCreateStatus = (regStatus == REG_MALLOCFAIL)
+            ? HM_MALLOCFAIL
+            : HM_IDENTIFIEREXHAUSTED;
         return invalid;
     }
 
-    uint64_t slot;
-    uint64_t gen;
-
-    if (!freeSlotsPop(reg, &slot, &gen)) {
-        if (reg->nextSlot == UINT64_MAX) {
-            realHmDestroy(real);
-            reg->lastCreateStatus = HM_IDENTIFIEREXHAUSTED;
-            return invalid;
-        }
-        slot = reg->nextSlot++;
-        gen = 1;
-    }
-
-    hashMap handle = { reg, slot, gen };
-
-    int putStatus = realHmPut(reg->registry, &handle, &real);
-    if (putStatus != HM_SUCCESSFULOP && putStatus != HM_EXPANDFAILED) {
-        freeSlotsPush(reg, slot, gen);
-        realHmDestroy(real);
-        reg->lastCreateStatus = putStatus;
-        return invalid;
-    }
-
-    reg->lastCreateStatus = putStatus;
+    hashMap handle = { reg, h.slot, h.generation };
+    reg->lastCreateStatus = HM_SUCCESSFULOP;
     return handle;
 }
 
@@ -415,81 +125,85 @@ void hmDestroy(hashMap* handle) {
     if (handle->slot == 0 || !handle->reg) return;
 
     HashMapRegistry* reg = handle->reg;
-    hashMap h = *handle;
+    Handle h = { handle->slot, handle->generation };
     handle->reg = NULL;
     handle->slot = 0;
     handle->generation = 0;
 
     RealHashMap* real = NULL;
-    if (realHmGet(reg->registry, &h, &real) != HM_SUCCESSFULOP) {
-        return;
-    }
-
-    int removeStatus = realHmRemove(reg->registry, &h);
-    realHmDestroy(real);
-
-    if (removeStatus == HM_SUCCESSFULOP || removeStatus == HM_KEYNOTFOUND) {
-        freeSlotsPush(reg, h.slot, h.generation + 1);
+    int status = registryCoreRemove(reg->core, h, (void**)&real);
+    if (status == REG_SUCCESSFULOP && real) {
+        realHmDestroy(real);
     }
 }
 
 int hmPut(hashMap handle, const void* key, const void* value) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return realHmPut(real, key, value);
+    return translateRhmStatus(realHmPut(real, key, value));
 }
 
 int hmGet(hashMap handle, const void* key, void* outValue) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return realHmGet(real, key, outValue);
+    return translateRhmStatus(realHmGet(real, key, outValue));
 }
 
 int hmRemove(hashMap handle, const void* key) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return realHmRemove(real, key);
+    return translateRhmStatus(realHmRemove(real, key, NULL));
 }
 
 int hmContains(hashMap handle, const void* key) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return realHmContains(real, key);
+    return translateRhmStatus(realHmContains(real, key));
 }
 
 int hmClear(hashMap handle) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return realHmClear(real);
+    return translateRhmStatus(realHmClear(real));
 }
 
 size_t hmGetCount(hashMap handle) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return 0;
-    return real->elementCount;
+    return realHmGetCount(real);
 }
 
 size_t hmGetBucketCount(hashMap handle) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return 0;
-    return real->bucketCount;
+    return realHmGetBucketCount(real);
 }
 
 int hmGetStatus(hashMap handle) {
     RealHashMap* real = resolveHandle(handle);
     if (!real) return HM_NULL;
-    return real->status;
+    return realHmGetStatus(real) == 0 ? HM_AVAILABLE : HM_WRONGSTATUS;
 }
 
-// ============================================================
-// char* 内容哈希和比较
-// ============================================================
+/* ============================================================
+ * char* 内容哈希和比较（hmCreate 宏用到）
+ * ============================================================ */
+
+static size_t fnv1aForCString(const void* data, size_t size) {
+    const unsigned char* bytes = (const unsigned char*)data;
+    size_t hash = 14695981039346656037ULL;
+    for (size_t i = 0; i < size; ++i) {
+        hash ^= bytes[i];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
 
 size_t hashCString(const void* key, size_t keySize) {
     (void)keySize;
     const char* str = *(const char**)key;
     if (!str) return 0;
-    return fnv1a(str, strlen(str));
+    return fnv1aForCString(str, strlen(str));
 }
 
 int compareCString(const void* keyA, const void* keyB, size_t keySize) {
@@ -502,9 +216,9 @@ int compareCString(const void* keyA, const void* keyB, size_t keySize) {
     return strcmp(strA, strB);
 }
 
-// ============================================================
-// 状态转字符串
-// ============================================================
+/* ============================================================
+ * 状态转字符串
+ * ============================================================ */
 
 const char* hmStatusToCharArray(int status) {
     switch (status) {

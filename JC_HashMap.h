@@ -79,11 +79,11 @@ wheels int compareCString(const void* keyA, const void* keyB, size_t keySize);
 //
 //   char* key2;
 //   char* value2;
-//   hashMap map2 = hmCreate(&key2, &value2, NULL, NULL);
+//   hashMap map2 = hmCreate(reg, &key2, &value2, NULL, NULL);
 //
 //   MyStruct* key3;
 //   char* value3;
-//   hashMap map3 = hmCreate(&key3, &value3, myHash, myCompare);
+//   hashMap map3 = hmCreate(reg, &key3, &value3, myHash, myCompare);
 //
 // 第四个和第五个参数是给调用方自定义类型准备的。
 // 如果 key 类型已经在上面的 _Generic 列表里，这两个参数传 NULL, NULL。
