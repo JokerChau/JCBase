@@ -42,4 +42,4 @@ wheels int alRemoveAt(ArrayList* const list, size_t index);
 
 wheels int alClear(ArrayList* const list);
 
-wheels const char* alStatusToArray(int status);
+wheels const char* alStatusToCharArray(int status);

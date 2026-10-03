@@ -241,7 +241,7 @@ int alClear(ArrayList* const list) {
 	return AL_SUCCESSFULOP;
 }
 
-const char* alStatusToArray(int status) {
+const char* alStatusToCharArray(int status) {
 	switch (status) {
 	case AL_NULL: {
 		return "null ArrayList*";

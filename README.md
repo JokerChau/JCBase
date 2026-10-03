@@ -1,6 +1,6 @@
 # JCBase Library
 
-一个轻量级、模块化的 C 语言基础工具库，提供不可变字符串（String）、可变字符串（StringBuilder）、动态数组（ArrayList）、哈希表（HashMap）等常用数据结构，以及String配套的输入（Scanner中的nextLine）、类型转换、字符串处理函数。
+一个轻量级、模块化的 C 语言基础工具库，提供不可变字符串（String）、可变字符串（StringBuilder）、动态数组（ArrayList）、链表（LinkedList）、哈希表（HashMap）等常用数据结构，以及String配套的输入（Scanner中的nextLine）、类型转换、字符串处理函数。
 
 **设计目标**：简洁、安全、易用，适合作为 C/C++ 项目的底层基础组件。
 
@@ -16,7 +16,7 @@
 - 状态码机制，每个函数返回明确的状态值
 - 注意：该字符串不可变，所以最好不要频繁进行拼接之类的操作
 
-**可变字符串（StringBuilder） **
+**可变字符串（StringBuilder）**
 
 - 特性同String
 - 注意：该字符串可变，所以拼接等操作可以使用该字符串
@@ -26,6 +26,14 @@
 - 存储任意类型（通过 typeSize 指定）
 - 支持增删改查、插入、弹出、清空、缩容（shrinkToFit）
 - 动态扩容采用倍增策略（均摊 O(1) 插入）
+
+**链表（LinkedList）**
+
+- 带哨兵的循环双链表，存储任意类型（通过 typeSize 指定）
+- 节点结构与数据分离，支持 O(1) 摘链、O(1) 在任意已知节点前后插入
+- 双向遍历、节点移动、链表拼接均为 O(1)（仅改指针，不移动数据）
+- 支持值操作（pushBack / popFront / insertAt 等）与节点操作（insertBefore / insertAfter / removeNode / moveBefore 等）两层接口
+- 范围清理（clearInRange）按区间批量删除节点
 
 **哈希表（HashMap）**
 
@@ -57,7 +65,7 @@
 
 - 使用 Visual Studio 创建 C++ DLL 项目（或空项目）
 - 将所有 `.c` 和 `.h` 文件添加到项目中
-- 关闭预编译头（项目属性 → C/C++ → 预编译头 → 选择“不使用预编译头”）
+- 关闭预编译头（项目属性 → C/C++ → 预编译头 → 选择"不使用预编译头"）
 - 在 `wheel_ex.h` 中，`JCBASE_EXPORTS` 宏已在 DLL 项目中自动定义，确保导出符号
 - 编译为 Release 模式，生成 `.dll` 和 `.lib` 文件
 
@@ -198,6 +206,46 @@
 | `int` | `alClear(ArrayList* const list)` | 清空元素数量，不释放 buffer |
 | `const char*` | `alStatusToArray(int status)` | 状态码转描述 |
 
+### LinkedList 模块
+
+| 返回类型 | 函数 / 宏 | 说明 |
+|---|---|---|
+| `linkedList` | `newLinkedList(pointer)` | 类型安全构造宏，展开为 `llCreate(sizeof(*(pointer)))` |
+| `linkedList` | `llCreate(size_t typeSize)` | 创建链表 |
+| `int` | `llDestroy(linkedList list)` | 销毁实例，释放所有数据节点和 header |
+| `int` | `llClear(linkedList list)` | 清空所有数据节点，保留实例 |
+| `int` | `llGetStatus(const LinkedList* const list)` | 获取状态 |
+| `size_t` | `llGetCount(const LinkedList* const list)` | 获取元素数量 |
+| `const char*` | `llStatusToCharArray(int status)` | 状态码转描述 |
+| `int` | `llPushBack(linkedList list, const void* content)` | 尾部插入值 |
+| `int` | `llPushFront(linkedList list, const void* content)` | 头部插入值 |
+| `int` | `llInsertAt(linkedList list, const void* content, size_t index)` | 指定位置插入值 |
+| `int` | `llPopBack(linkedList list)` | 尾部弹出 |
+| `int` | `llPopFront(linkedList list)` | 头部弹出 |
+| `int` | `llRemoveAt(linkedList list, size_t index)` | 删除指定位置 |
+| `int` | `llGetContentAt(const LinkedList* list, size_t index, void* out)` | 按索引取内容 |
+| `int` | `llSetContentAt(linkedList list, size_t index, const void* content)` | 按索引设内容 |
+| `int` | `llGetFrontNode(const linkedList list, linkedListNode* out)` | 获取首个数据节点 |
+| `int` | `llGetBackNode(const linkedList list, linkedListNode* out)` | 获取最后一个数据节点 |
+| `int` | `llGetHeader(const linkedList list, linkedListNode* out)` | 获取头结点（哨兵） |
+| `int` | `llGetNodeAt(const linkedList list, size_t index, linkedListNode* out)` | 获取索引处节点 |
+| `int` | `llNext(linkedListNode* node)` | 游标前移 |
+| `int` | `llPrev(linkedListNode* node)` | 游标后移 |
+| `int` | `llGetFromNode(const linkedList list, const LinkedListNode* node, void* out)` | 按节点取内容 |
+| `int` | `llSetOfNode(linkedList list, linkedListNode node, const void* content)` | 按节点设内容 |
+| `int` | `llInsertBefore(linkedList list, linkedListNode node, const void* content)` | 在指定节点前插入 |
+| `int` | `llInsertAfter(linkedList list, linkedListNode node, const void* content)` | 在指定节点后插入 |
+| `int` | `llRemoveNode(linkedList list, linkedListNode node)` | 删除指定节点 |
+| `int` | `llMoveBefore(linkedList list, linkedListNode node, linkedListNode pos)` | 将节点移到 pos 前 |
+| `int` | `llMoveAfter(linkedList list, linkedListNode node, linkedListNode pos)` | 将节点移到 pos 后 |
+| `int` | `llMoveToFront(linkedList list, linkedListNode node)` | 将节点移到链表头 |
+| `int` | `llMoveToBack(linkedList list, linkedListNode node)` | 将节点移到链表尾 |
+| `int` | `llSpliceBack(linkedList front, linkedList back)` | 将 back 拼接到 front 尾部，back 被消耗 |
+| `int` | `llSpliceBefore(linkedList hold, linkedListNode node, linkedList material)` | 将 material 拼到 node 前 |
+| `int` | `llSpliceAfter(linkedList hold, linkedListNode node, linkedList material)` | 将 material 拼到 node 后 |
+| `int` | `llSpliceAt(linkedList hold, size_t index, linkedList material)` | 将 material 拼到指定索引前 |
+| `int` | `llClearInRange(linkedList list, size_t start, size_t end)` | 清空 `[start, end)` 区间 |
+
 ### HashMap 模块
 
 | 返回类型 | 函数 / 宏 | 说明 |
@@ -236,15 +284,17 @@
 | `stringBuilderStatus` | `StringBuilderSrc.h` | `typedef stringCommonStatus stringBuilderStatus;` |
 | `stringCommonStatus` | `StringComStatus.h` | String / StringBuilder 公共状态枚举 |
 | `alStatus` | `ArrayListSrc.h` | ArrayList 状态枚举 |
+| `llStatus` | `LinkedListSrc.h` | LinkedList 状态枚举 |
 | `hashMapStatus` | `HashMapSrc.h` | HashMap 状态枚举 |
 | `hashFunction` | `HashMap.h` | 哈希函数指针类型 |
 | `compareFunction` | `HashMap.h` | 比较函数指针类型 |
 | `hashMap` | `HashMap.h` | HashMap 句柄结构体 |
 | `hashMapStatusReport` | `HashMap.h` | HashMap 状态报告结构体 |
 | `wheels` | `wheel_ex.h` | DLL 导出 / 导入宏 |
+
 ---
 
-### 使用示例
+## 使用示例
 
 ### String 基本操作
 
@@ -301,6 +351,86 @@ int main() {
     printf("First element: %d\n", out);
 
     alDestroy(list);
+    return 0;
+}
+```
+
+### LinkedList 操作
+
+```c
+#include "JC_LinkedList.h"
+#include <stdio.h>
+
+int main() {
+    int dummy = 0;
+    linkedList list = newLinkedList(&dummy);
+    // 展开成 llCreate(sizeof(int))
+
+    if (llGetStatus(list) != LL_AVAILABLE) {
+        fprintf(stderr, "LinkedList creation failed\n");
+        return 1;
+    }
+
+    /* 按值操作 */
+    int val = 42;
+    llPushBack(list, &val);      // 42
+    val = 100;
+    llPushFront(list, &val);     // 100, 42
+    val = 7;
+    llInsertAt(list, &val, 1);   // 100, 7, 42
+
+    int out;
+    llGetContentAt(list, 1, &out);
+    printf("Element at index 1: %d\n", out);   // 7
+
+    /* 按节点操作 */
+    linkedListNode node;
+    llGetNodeAt(list, 2, &node);   // 指向 42
+    val = 999;
+    llInsertBefore(list, node, &val);  // 100, 7, 999, 42
+    llMoveToFront(list, node);         // 42, 100, 7, 999
+    llRemoveNode(list, node);          // 100, 7, 999
+
+    /* 遍历 */
+    linkedListNode h, p;
+    llGetHeader(list, &h);
+    llGetFrontNode(list, &p);
+    while (p != h) {
+        llGetFromNode(list, p, &out);
+        printf("%d ", out);
+        llNext(&p);
+    }
+    printf("\n");
+
+    llDestroy(list);
+    return 0;
+}
+```
+
+### 链表拼接
+
+```c
+#include "JC_LinkedList.h"
+#include <stdio.h>
+
+int main() {
+    linkedList a = llCreate(sizeof(int));
+    linkedList b = llCreate(sizeof(int));
+
+    int v;
+    v = 1; llPushBack(a, &v);
+    v = 2; llPushBack(a, &v);
+    v = 3; llPushBack(b, &v);
+    v = 4; llPushBack(b, &v);
+
+    /* 把 b 拼到 a 末尾，O(1)，b 被消耗 */
+    llSpliceBack(a, &b);
+    printf("count = %zu\n", llGetCount(a));   // 4
+
+    /* b 内部资源已被释放，只能 llDestroy 或 free */
+    llDestroy(b);
+
+    llDestroy(a);
     return 0;
 }
 ```
@@ -447,9 +577,9 @@ deleteString(line);
 
 ### 1. 始终检查实例状态
 
-在调用任何操作函数之前，务必使用 `alGetStatus` / `getStringStatus` / `hmGetStatus` 检查实例是否为可用状态。
+在调用任何操作函数之前，务必使用 `alGetStatus` / `llGetStatus` / `getStringStatus` / `hmGetStatus` 检查实例是否为可用状态。
 
-非法状态（如 `NULLAL`、`INVALIDALTYPESIZE`、`NULLBUFFER`、`INVALIDHMSIZE`）可能导致未定义行为。
+非法状态（如 `NULLAL`、`INVALIDALTYPESIZE`、`NULLBUFFER`、`INVALIDHMSIZE`、`LL_NULLHEADER`）可能导致未定义行为。
 
 ```c
 if (alGetStatus(list) != AVAILABLEAL) {
@@ -460,9 +590,9 @@ if (alGetStatus(list) != AVAILABLEAL) {
 
 ### 2. 内存管理
 
-使用 `alDestroy` / `deleteString` / `hmDestroy` 释放实例，库不会自动回收。
+使用 `alDestroy` / `llDestroy` / `deleteString` / `deleteSb` / `hmDestroy` 释放实例，库不会自动回收。
 
-对于 ArrayList，元素数据由库管理，但元素本身的内存（如动态分配的指针）仍需调用者自行管理。
+对于 ArrayList / LinkedList，元素数据由库管理（逐字节拷贝），但元素本身若包含指针（如动态分配的字符串），指针指向的内容仍需调用者自行管理。
 
 `splitString` 返回的数组和其中的 String 对象都需要分别释放（先释放每个 String，再释放数组本身）。
 
@@ -470,11 +600,12 @@ if (alGetStatus(list) != AVAILABLEAL) {
 
 每个模块的状态码定义在各自的 `XxxSrc.h` 里：
 
-- `StringSrc.h`：`stringStatus`
+- `StringSrc.h` / `StringBuilderSrc.h`：`stringCommonStatus`
 - `ArrayListSrc.h`：`alStatus`
+- `LinkedListSrc.h`：`llStatus`
 - `HashMapSrc.h`：`hashMapStatus`
 
-建议使用 `stringStatusToArray` / `alStatusToArray` / `hmStatusToArray` 将状态码转换为可读字符串，便于调试。
+建议使用 `stringStatusToArray` / `alStatusToArray` / `llStatusToCharArray` / `hmStatusToArray` 将状态码转换为可读字符串，便于调试。
 
 ### 4. HashMap 的句柄机制
 
@@ -484,23 +615,34 @@ HashMap 对外暴露的不是裸指针，而是一个句柄。这个设计被用
 - **ABA**：identifier 全局递增、不复用，旧 identifier 永远查不到。
 - **无效句柄**：所有操作先查内部注册表，查不到就返回 `NULLHM`。
 
-### 5. 扩容策略
+### 5. LinkedList 的节点机制
+
+LinkedList 对外暴露节点句柄 `linkedListNode`，与值操作接口并存：
+
+- **值操作**：`llPushBack` / `llInsertAt` / `llGetContentAt` 等，调用方只关心数据，不接触节点；
+- **节点操作**：`llGetNodeAt` / `llInsertBefore` / `llMoveBefore` / `llRemoveNode` 等，调用方持有节点句柄，可以获得 O(1) 的插入、删除、移动性能。
+
+节点句柄在节点被删除后即悬垂，调用方应遵守"删除后不再使用"的约定。链表内部有哨兵节点 `header`，`llGetHeader` 可获取；哨兵不能通过 `llRemoveNode` 删除，也不能通过 `llSetOfNode` 写入内容。
+
+### 6. 扩容策略
 
 ArrayList 采用倍增扩容（容量不足时翻倍），保证大量插入的均摊性能 O(1)。
 
-HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容减半，最小桶数 16，避免抖动。
+HashMap 采用负载因子控制：超过 0.75 扩容翻倍，最小桶数 16，避免抖动。
+
+LinkedList 每个节点单独分配，没有容量概念，不需要扩容/缩容。
 
 若对内存占用敏感，ArrayList 可使用 `alShrinkToFit` 在批量插入后收缩内存。
 
-### 6. 线程安全
+### 7. 线程安全
 
-**本库 v1.5 非线程安全**。HashMap 的注册表是全局的，ArrayList / String 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
+**本库 v1.5 非线程安全**。HashMap 的注册表是全局的（或由调用方持有的 `HashMapRegistry`），ArrayList / String / StringBuilder / LinkedList 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
 
 **后续版本计划**：为 HashMap 提供线程安全方案，为其他模块统一引入注册表机制解决别名问题，届时会一并考虑并发安全。
 
-### 7. 语言标准
+### 8. 语言标准
 
-因该库使用了_Generic，所以请注意使用C11或更高标准来编译此库
+因该库使用了 `_Generic`，所以请注意使用 C11 或更高标准来编译此库。
 
 ---
 
@@ -508,7 +650,7 @@ HashMap 采用负载因子控制：超过 0.75 扩容翻倍，低于 0.25 缩容
 
 - **AL**：解决别名问题、线程安全
 - **HM**：线程安全
-- **LL**：写出框架、解决别名问题
+- **LL**：解决别名问题
 - **SB**：线程安全
 - **String**：改为真正不可变、解决别名问题、线程安全
 - **Scanner**：整型等原生类型的标准输入读取函数
