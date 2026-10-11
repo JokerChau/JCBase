@@ -1,659 +1,205 @@
-# JCBase Library
+# JCBase-json
 
-一个轻量级、模块化的 C 语言基础工具库，提供不可变字符串（String）、可变字符串（StringBuilder）、动态数组（ArrayList）、链表（LinkedList）、哈希表（HashMap）等常用数据结构，以及String配套的输入（Scanner中的nextLine）、类型转换、字符串处理函数。
+C 语言 JSON 解析库。从 `.json` 文件读取文本，解析成内存中的节点树。
 
-**设计目标**：简洁、安全、易用，适合作为 C/C++ 项目的底层基础组件。
+本库不依赖任何第三方库，只用 C 标准库。可跨平台编译（Windows / Linux / macOS）。
 
----
+## 当前状态
 
-## 功能特性
+**已完成：**
 
-**不可变字符串（String）**
+- 从文件读取 JSON 文本
+- 解析成节点树
+- 递归销毁节点树
 
-- 半自动内存管理，使用delete~~函数进行内存释放，带有长度结构体成员以提升性能
-- 丰富的操作：拼接、截取、分割、查找、替换、修剪、大小写转换等
-- 类型转换：安全转换为 int、long、long long、float、double
-- 状态码机制，每个函数返回明确的状态值
-- 注意：该字符串不可变，所以最好不要频繁进行拼接之类的操作
+**未完成：**
 
-**可变字符串（StringBuilder）**
+- 从字符串 / 内存缓冲区解析
+- 序列化（把节点树写回 JSON 文本）
+- 访问接口（按 key 取对象成员、按索引取数组元素、类型转换）
+- 流式解析
 
-- 特性同String
-- 注意：该字符串可变，所以拼接等操作可以使用该字符串
+**注意：** 当前节点结构体定义在 `.c` 文件中，头文件里只有前向声明。用户拿到 `jsonNode*` 后，暂时无法直接访问节点内容。访问接口是下一步的开发内容。
 
-**动态数组（ArrayList）**
+## 文件
 
-- 存储任意类型（通过 typeSize 指定）
-- 支持增删改查、插入、弹出、清空、缩容（shrinkToFit）
-- 动态扩容采用倍增策略（均摊 O(1) 插入）
+| 文件 | 说明 |
+|---|---|
+| `jsonmain.h` | 对外头文件，声明公开 API 和错误码 |
+| `jsonmain.c` | 实现 |
+| `wheel_json_ex.h` | 导出宏定义，控制 DLL 导出/导入 |
 
-**链表（LinkedList）**
+## 编译
 
-- 带哨兵的循环双链表，存储任意类型（通过 typeSize 指定）
-- 节点结构与数据分离，支持 O(1) 摘链、O(1) 在任意已知节点前后插入
-- 双向遍历、节点移动、链表拼接均为 O(1)（仅改指针，不移动数据）
-- 支持值操作（pushBack / popFront / insertAt 等）与节点操作（insertBefore / insertAfter / removeNode / moveBefore 等）两层接口
-- 范围清理（clearInRange）按区间批量删除节点
+### Windows（MSVC）
 
-**哈希表（HashMap）**
+1. 创建 C++ DLL 项目。
+2. 删除项目模板中所有头文件和源文件。
+3. 把本库的三个文件加入项目。
+4. 项目属性 → C/C++ → 预编译头 → 选择"不使用预编译头"。
+5. 项目属性 → C/C++ → 预处理器 → 预处理器定义，添加 `JCBASEJSON_EXPORTS`。
+6. 生成解决方案。
 
-- 泛型键值对存储（keySize / valueSize 指定）
-- 拉链法解决冲突，支持扩缩容
-- 支持自定义哈希函数和比较函数，`char*` 键按内容比较
-- **句柄机制**：对外暴露 句柄结构体 而非裸指针，从设计上尽量解决别名、double free、use-after-free 问题
-- 提供 `hmCreate` 宏做类型安全的构造入口
+### Linux / macOS
 
-**输入辅助（Scanner）**
+```bash
+# 编译成动态库
+gcc -shared -fPIC -O2 -o libjcbase-json.so jsonmain.c
 
-- 提供 `nextLine()` 从标准输入读取一行，返回 String 实例
+# 如果要严格按大文件支持编译
+gcc -shared -fPIC -O2 -D_FILE_OFFSET_BITS=64 -o libjcbase-json.so jsonmain.c
+```
 
-**统一错误处理**
+## API
 
-- 所有函数通过返回值报告状态（成功/失败/非法参数等）
-- 每个模块有独立的状态枚举，状态码定义在各自的 `XxxSrc.h` 里
-- 提供状态码转字符串函数，便于调试
-
----
-
-## 快速开始
-
-### 1. 获取源码
-
-从 GitHub 克隆或下载本仓库。
-
-### 2. 构建动态库（Visual Studio 示例）
-
-- 使用 Visual Studio 创建 C++ DLL 项目（或空项目）
-- 将所有 `.c` 和 `.h` 文件添加到项目中
-- 关闭预编译头（项目属性 → C/C++ → 预编译头 → 选择"不使用预编译头"）
-- 在 `wheel_ex.h` 中，`JCBASE_EXPORTS` 宏已在 DLL 项目中自动定义，确保导出符号
-- 编译为 Release 模式，生成 `.dll` 和 `.lib` 文件
-
-### 3. 在你的项目中使用
-
-- 包含头文件：`#include "String.h"`、`#include "ArrayList.h"` 或 `#include "HashMap.h"`（根据需求）
-- 链接生成的 `.lib` 文件，运行时确保 `.dll` 在搜索路径中
-- 所有 API 均以 `wheels` 修饰符导出（Windows 专用，其他平台可忽略）
-
----
-
-## 核心 API 概览
-
-### String 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `string` | `newString()` | 创建空字符串 |
-| `string` | `newStringFrom(const char* const content)` | 从 C 字符串创建 |
-| `void` | `deleteString(string str)` | 释放实例，可传 `NULL` |
-| `int` | `getStringStatus(const String* const str)` | 获取实例状态 |
-| `size_t` | `getStringLength(const String* const str)` | 获取长度 |
-| `char*` | `getStringContent(const String* const str)` | 返回内容副本，需释放 |
-| `const char*` | `stringStatusToCharArray(const int status)` | 状态码转描述 |
-| `string` | `appendString(const String* const str1, const String* const str2)` | 拼接两个 String |
-| `string` | `appendStringFrom(const String* const str, const char* const content)` | 拼接 String 与 C 字符串 |
-| `string` | `reverseString(const String* const str)` | 反转字符串 |
-| `int` | `splitString(const String* const str, char delimiter, string** outArray, size_t* count)` | 按分隔符分割 |
-| `string` | `trim(const String* const str)` | 去除首尾空白 |
-| `string` | `clone(const String* const str)` | 克隆 |
-| `int` | `charAt(const String* const str, size_t index, char* result)` | 获取指定位置字符 |
-| `int` | `indexOfFront(const String* const str, char ch, size_t* result)` | 从前往后查找字符 |
-| `int` | `indexOfBack(const String* const str, char ch, size_t* result)` | 从后往前查找字符 |
-| `string` | `subStringInLengthFront(const String* const str, size_t start, size_t length)` | 从 start 向后取 length |
-| `string` | `subStringInLengthBack(const String* const str, size_t end, size_t length)` | 以 end 为终点向前取 length |
-| `string` | `subStringInRange(const String* const str, size_t start, size_t end)` | 截取 `[start, end)` |
-| `string` | `subStringInLengthFrontFrom(const char* const ch, size_t start, size_t length)` | 对 C 字符串从 start 向后取 length |
-| `string` | `subStringInLengthBackFrom(const char* const ch, size_t end, size_t length)` | 对 C 字符串以 end 为终点向前取 length |
-| `string` | `subStringInRangeFrom(const char* const ch, size_t start, size_t end)` | 对 C 字符串截取 `[start, end)` |
-| `string` | `replaceFirst(const String* const str, const char* const target, const String* const replacement)` | 替换首次匹配 |
-| `string` | `replaceAll(const String* const str, const char* const target, const String* const replacement)` | 替换全部匹配 |
-| `string` | `replaceFirstFrom(const String* const str, const char* const target, const char* const replacement)` | 替换首次匹配，替换内容为 C 字符串 |
-| `string` | `replaceAllFrom(const String* const str, const char* const target, const char* const replacement)` | 替换全部匹配，替换内容为 C 字符串 |
-| `bool` | `startWith(const String* const str, const char* const prefix)` | 是否以 prefix 开头 |
-| `bool` | `endWith(const String* const str, const char* const suffix)` | 是否以 suffix 结尾 |
-| `bool` | `startWithString(const String* const str, const String* const prefix)` | 是否以 String 前缀开头 |
-| `bool` | `endWithString(const String* const str, const String* const suffix)` | 是否以 String 后缀结尾 |
-| `bool` | `isEmpty(const String* const str)` | 是否为空串 |
-| `bool` | `isBlank(const String* const str)` | 是否全空白 |
-| `bool` | `equals(const String* const str1, const String* const str2)` | 判断两个 String 是否相等 |
-| `bool` | `equalsFrom(const String* const str, const char* const ch)` | 判断 String 与 C 字符串是否相等 |
-| `bool` | `contains(const String* const str1, const String* const str2)` | 判断是否包含 |
-| `bool` | `containsFrom(const String* const str, const char* const ch)` | 判断是否包含 C 字符串 |
-| `char*` | `toArray(const String* const str)` | 转为 C 字符串副本，需释放 |
-| `int` | `toInt(const String* const str, int* result)` | 转 int |
-| `int` | `toLong(const String* const str, long* result)` | 转 long |
-| `int` | `toLongLong(const String* const str, long long* result)` | 转 long long |
-| `int` | `toFloat(const String* const str, float* result)` | 转 float |
-| `int` | `toDouble(const String* const str, double* result)` | 转 double |
-| `string` | `toLowerCase(const String* const str)` | 转小写，返回新实例 |
-| `string` | `toUpperCase(const String* const str)` | 转大写，返回新实例 |
-| `stringBuilder` | `stringToSb(const String* const str)` | String 转 StringBuilder |
-
-### StringBuilder 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `stringBuilder` | `newSb()` | 创建空 StringBuilder |
-| `stringBuilder` | `newSbFrom(const char* const ch)` | 从 C 字符串创建 |
-| `void` | `deleteSb(stringBuilder sb)` | 释放实例 |
-| `int` | `getSbStatus(const StringBuilder* const sb)` | 获取状态 |
-| `size_t` | `getSbLength(const StringBuilder* const sb)` | 获取长度 |
-| `const char*` | `getSbBuffer(const StringBuilder* const sb)` | 获取内部 buffer，只读 |
-| `const char*` | `getSbContent(const StringBuilder* const sb)` | 返回内容副本 |
-| `int` | `setSbContent(StringBuilder* const str, const char* const content)` | 设置内容 |
-| `int` | `changeAt(stringBuilder str, size_t index, char ch)` | 修改指定位置字符 |
-| `const char*` | `sbStatusToCharArray(const int status)` | 状态码转描述 |
-| `int` | `appendSb(StringBuilder* sb, const StringBuilder* const src)` | 追加 StringBuilder |
-| `int` | `appendSbFrom(stringBuilder sb, const char* const ch)` | 追加 C 字符串 |
-| `int` | `reverseSb(stringBuilder sb)` | 原地反转 |
-| `int` | `splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outArray, size_t* count)` | 分割 |
-| `int` | `trimSb(stringBuilder const str)` | 原地去除首尾空白 |
-| `stringBuilder` | `cloneSb(const StringBuilder* const str)` | 克隆 |
-| `int` | `charAtSb(const StringBuilder* const str, size_t index, char* result)` | 获取指定位置字符 |
-| `int` | `sbIndexOfFront(const StringBuilder* const str, char ch, size_t* result)` | 从前往后查找字符 |
-| `int` | `sbIndexOfBack(const StringBuilder* const str, char ch, size_t* result)` | 从后往前查找字符 |
-| `stringBuilder` | `subSbInLengthFront(const StringBuilder* const str, size_t start, size_t length)` | 从 start 向后取 length |
-| `stringBuilder` | `subSbInLengthBack(const StringBuilder* const str, size_t end, size_t length)` | 以 end 为终点向前取 length |
-| `stringBuilder` | `subSbInRange(const StringBuilder* const str, size_t start, size_t end)` | 截取 `[start, end)` |
-| `stringBuilder` | `subSbInLengthFrontFrom(const char* const ch, size_t start, size_t length)` | 对 C 字符串从 start 向后取 length |
-| `stringBuilder` | `subSbInLengthBackFrom(const char* const ch, size_t end, size_t length)` | 对 C 字符串以 end 为终点向前取 length |
-| `stringBuilder` | `subSbInRangeFrom(const char* const ch, size_t start, size_t end)` | 对 C 字符串截取 `[start, end)` |
-| `int` | `replaceSbFirst(StringBuilder* str, const char* const target, const StringBuilder* const replacement)` | 替换首次匹配 |
-| `int` | `replaceSbFirstFrom(StringBuilder* str, const char* const target, const char* const replacement)` | 替换首次匹配，替换内容为 C 字符串 |
-| `int` | `replaceSbAll(StringBuilder* str, const char* const target, const StringBuilder* const replacement)` | 替换全部匹配 |
-| `int` | `replaceSbAllFrom(StringBuilder* str, const char* const target, const char* const replacement)` | 替换全部匹配，替换内容为 C 字符串 |
-| `bool` | `sbStartWith(const StringBuilder* const str, const char* const prefix)` | 是否以 prefix 开头 |
-| `bool` | `sbEndWith(const StringBuilder* const str, const char* const suffix)` | 是否以 suffix 结尾 |
-| `bool` | `sbStartWithString(const StringBuilder* const str, const StringBuilder* const prefix)` | 是否以 StringBuilder 前缀开头 |
-| `bool` | `sbEndWithString(const StringBuilder* const str, const StringBuilder* const suffix)` | 是否以 StringBuilder 后缀结尾 |
-| `bool` | `sbIsEmpty(const StringBuilder* const str)` | 是否为空串 |
-| `bool` | `sbIsBlank(const StringBuilder* const str)` | 是否全空白 |
-| `bool` | `equalsSb(const StringBuilder* const str1, const StringBuilder* const str2)` | 判断两个 StringBuilder 是否相等 |
-| `bool` | `equalsSbFrom(const StringBuilder* const str, const char* const ch)` | 判断与 C 字符串是否相等 |
-| `bool` | `containsSb(const StringBuilder* const str1, const StringBuilder* const str2)` | 判断是否包含 |
-| `bool` | `containsSbFrom(const StringBuilder* const str, const char* const ch)` | 判断是否包含 C 字符串 |
-| `char*` | `sbToArray(const StringBuilder* const str)` | 转为 C 字符串副本，需释放 |
-| `int` | `sbToInt(const StringBuilder* const str, int* result)` | 转 int |
-| `int` | `sbToLong(const StringBuilder* const str, long* result)` | 转 long |
-| `int` | `sbToLongLong(const StringBuilder* const str, long long* result)` | 转 long long |
-| `int` | `sbToFloat(const StringBuilder* const str, float* result)` | 转 float |
-| `int` | `sbToDouble(const StringBuilder* const str, double* result)` | 转 double |
-| `int` | `sbToLowerCase(StringBuilder* str)` | 原地转小写 |
-| `int` | `sbToUpperCase(StringBuilder* str)` | 原地转大写 |
-| `string` | `sbToString(const StringBuilder* const str)` | StringBuilder 转 String |
-
-
-### ArrayList 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `ArrayList*` | `newArrayList(pointer)` | 类型安全构造宏，展开为 `alCreate(sizeof(*(pointer)))` |
-| `ArrayList*` | `alCreate(size_t typeSize)` | 创建动态数组 |
-| `void` | `alDestroy(ArrayList* list)` | 销毁实例 |
-| `int` | `alGetStatus(const ArrayList* const list)` | 获取状态 |
-| `size_t` | `alGetCount(const ArrayList* const list)` | 获取元素数量 |
-| `size_t` | `alGetMaxCount(const ArrayList* const list)` | 获取当前容量 |
-| `int` | `alSetMaxCount(ArrayList* const list, size_t count)` | 手动设置容量 |
-| `int` | `alShrinkToFit(ArrayList* const list)` | 缩容到恰好容纳元素 |
-| `int` | `alGetAt(const ArrayList* const list, size_t index, void* ele)` | 获取指定位置元素 |
-| `int` | `alSetAt(ArrayList* const list, size_t index, const void* const content)` | 设置指定位置元素 |
-| `int` | `alPushBack(ArrayList* const list, const void* const content)` | 尾部插入 |
-| `int` | `alPushFront(ArrayList* const list, const void* const content)` | 头部插入 |
-| `int` | `alInsertAt(ArrayList* const list, const void* const content, size_t index)` | 指定位置插入 |
-| `int` | `alPopBack(ArrayList* const list)` | 尾部弹出 |
-| `int` | `alPopFront(ArrayList* const list)` | 头部弹出 |
-| `int` | `alRemoveAt(ArrayList* const list, size_t index)` | 删除指定位置 |
-| `int` | `alClear(ArrayList* const list)` | 清空元素数量，不释放 buffer |
-| `const char*` | `alStatusToArray(int status)` | 状态码转描述 |
-
-### LinkedList 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `linkedList` | `newLinkedList(pointer)` | 类型安全构造宏，展开为 `llCreate(sizeof(*(pointer)))` |
-| `linkedList` | `llCreate(size_t typeSize)` | 创建链表 |
-| `int` | `llDestroy(linkedList list)` | 销毁实例，释放所有数据节点和 header |
-| `int` | `llClear(linkedList list)` | 清空所有数据节点，保留实例 |
-| `int` | `llGetStatus(const LinkedList* const list)` | 获取状态 |
-| `size_t` | `llGetCount(const LinkedList* const list)` | 获取元素数量 |
-| `const char*` | `llStatusToCharArray(int status)` | 状态码转描述 |
-| `int` | `llPushBack(linkedList list, const void* content)` | 尾部插入值 |
-| `int` | `llPushFront(linkedList list, const void* content)` | 头部插入值 |
-| `int` | `llInsertAt(linkedList list, const void* content, size_t index)` | 指定位置插入值 |
-| `int` | `llPopBack(linkedList list)` | 尾部弹出 |
-| `int` | `llPopFront(linkedList list)` | 头部弹出 |
-| `int` | `llRemoveAt(linkedList list, size_t index)` | 删除指定位置 |
-| `int` | `llGetContentAt(const LinkedList* list, size_t index, void* out)` | 按索引取内容 |
-| `int` | `llSetContentAt(linkedList list, size_t index, const void* content)` | 按索引设内容 |
-| `int` | `llGetFrontNode(const linkedList list, linkedListNode* out)` | 获取首个数据节点 |
-| `int` | `llGetBackNode(const linkedList list, linkedListNode* out)` | 获取最后一个数据节点 |
-| `int` | `llGetHeader(const linkedList list, linkedListNode* out)` | 获取头结点（哨兵） |
-| `int` | `llGetNodeAt(const linkedList list, size_t index, linkedListNode* out)` | 获取索引处节点 |
-| `int` | `llNext(linkedListNode* node)` | 游标前移 |
-| `int` | `llPrev(linkedListNode* node)` | 游标后移 |
-| `int` | `llGetFromNode(const linkedList list, const LinkedListNode* node, void* out)` | 按节点取内容 |
-| `int` | `llSetOfNode(linkedList list, linkedListNode node, const void* content)` | 按节点设内容 |
-| `int` | `llInsertBefore(linkedList list, linkedListNode node, const void* content)` | 在指定节点前插入 |
-| `int` | `llInsertAfter(linkedList list, linkedListNode node, const void* content)` | 在指定节点后插入 |
-| `int` | `llRemoveNode(linkedList list, linkedListNode node)` | 删除指定节点 |
-| `int` | `llMoveBefore(linkedList list, linkedListNode node, linkedListNode pos)` | 将节点移到 pos 前 |
-| `int` | `llMoveAfter(linkedList list, linkedListNode node, linkedListNode pos)` | 将节点移到 pos 后 |
-| `int` | `llMoveToFront(linkedList list, linkedListNode node)` | 将节点移到链表头 |
-| `int` | `llMoveToBack(linkedList list, linkedListNode node)` | 将节点移到链表尾 |
-| `int` | `llSpliceBack(linkedList front, linkedList back)` | 将 back 拼接到 front 尾部，back 被消耗 |
-| `int` | `llSpliceBefore(linkedList hold, linkedListNode node, linkedList material)` | 将 material 拼到 node 前 |
-| `int` | `llSpliceAfter(linkedList hold, linkedListNode node, linkedList material)` | 将 material 拼到 node 后 |
-| `int` | `llSpliceAt(linkedList hold, size_t index, linkedList material)` | 将 material 拼到指定索引前 |
-| `int` | `llClearInRange(linkedList list, size_t start, size_t end)` | 清空 `[start, end)` 区间 |
-
-### HashMap 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `bool` | `hmIsValid(hashMap handle)` | `static inline`，检查句柄是否非 0 |
-| `HashMapRegistry*` | `hmRegistryCreate(void)` | 创建注册表 |
-| `void` | `hmRegistryDestroy(HashMapRegistry* reg)` | 销毁注册表 |
-| `hashMapStatusReport` | `hmGetStatusReport(hashMap handle)` | 返回句柄有效、创建状态、实例状态 |
-| `hashMap` | `hmNew(size_t keySize, size_t valueSize, hashFunction hash, compareFunction compare)` | 内部构造器，不建议直接调用 |
-| `hashMap` | `hmCreate(reg, keyPointer, valuePointer, customHash, customCompare)` | 唯一对外构造宏 |
-| `int` | `hmGetLastCreateStatus(HashMapRegistry* reg)` | 获取最近一次创建状态 |
-| `void` | `hmDestroy(hashMap* handle)` | 销毁实例，并将句柄置 0 |
-| `int` | `hmPut(hashMap handle, const void* key, const void* value)` | 插入或覆盖键值对 |
-| `int` | `hmGet(hashMap handle, const void* key, void* outValue)` | 获取 value |
-| `int` | `hmRemove(hashMap handle, const void* key)` | 删除键值对 |
-| `int` | `hmContains(hashMap handle, const void* key)` | 判断 key 是否存在 |
-| `int` | `hmClear(hashMap handle)` | 清空所有键值对 |
-| `size_t` | `hmGetCount(hashMap handle)` | 获取键值对数量 |
-| `size_t` | `hmGetBucketCount(hashMap handle)` | 获取桶数量 |
-| `int` | `hmGetStatus(hashMap handle)` | 获取实例状态 |
-| `const char*` | `hmStatusToCharArray(int status)` | 状态码转描述 |
-| `size_t` | `hashCString(const void* key, size_t keySize)` | `char*` 键按内容哈希 |
-| `int` | `compareCString(const void* keyA, const void* keyB, size_t keySize)` | `char*` 键按内容比较 |
-
-### Scanner 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `string` | `nextLine()` | 从 stdin 读取一行，返回 String |
-
-### 类型与状态
-
-| 类型 / 宏 | 头文件 | 说明 |
-|---|---|---|
-| `stringStatus` | `StringSrc.h` | `typedef stringCommonStatus stringStatus;` |
-| `stringBuilderStatus` | `StringBuilderSrc.h` | `typedef stringCommonStatus stringBuilderStatus;` |
-| `stringCommonStatus` | `StringComStatus.h` | String / StringBuilder 公共状态枚举 |
-| `alStatus` | `ArrayListSrc.h` | ArrayList 状态枚举 |
-| `llStatus` | `LinkedListSrc.h` | LinkedList 状态枚举 |
-| `hashMapStatus` | `HashMapSrc.h` | HashMap 状态枚举 |
-| `hashFunction` | `HashMap.h` | 哈希函数指针类型 |
-| `compareFunction` | `HashMap.h` | 比较函数指针类型 |
-| `hashMap` | `HashMap.h` | HashMap 句柄结构体 |
-| `hashMapStatusReport` | `HashMap.h` | HashMap 状态报告结构体 |
-| `wheels` | `wheel_ex.h` | DLL 导出 / 导入宏 |
-
----
-
-## 使用示例
-
-### String 基本操作
+### jsonParserCreate
 
 ```c
-#include "JC_String.h"
+jsonParser* jsonParserCreate(const char* filepath);
+```
+
+从文件创建一个解析器。
+
+- 打开文件，读取全部内容到内存，返回一个 `jsonParser*`。
+- 返回的 parser 持有文本内存，使用完后需要调用 `jsonParserDestroy` 释放（当前版本尚未提供该函数，见"已知限制"）。
+- 失败时返回的 parser 非 `NULL`，但状态码非 `JSON_SUCCESSFULOP`。用 `jsonGetParserStatus` 检查。
+- 只有 `malloc` 失败时才可能返回 `NULL`。
+
+### jsonGetParserStatus
+
+```c
+int jsonGetParserStatus(jsonParser* parser);
+```
+
+获取 parser 的状态码，返回 `jsonError` 枚举值。
+
+- `JSON_SUCCESSFULOP` 表示一切正常。
+- 其他值表示错误，具体见错误码表。
+- 传入 `NULL` 返回 `JSON_NULLPARSER`。
+
+### jsonParse
+
+```c
+jsonNode* jsonParse(jsonParser* parser);
+```
+
+解析文本，返回根节点。
+
+- 成功返回根节点指针，非 `NULL`。
+- 失败返回 `NULL`，具体原因在 `parser->error` 里，用 `jsonGetParserStatus` 获取。
+
+### jsonNodeDestroy
+
+```c
+void jsonNodeDestroy(jsonNode* node);
+```
+
+递归销毁一棵节点树。
+
+- 传入 `NULL` 安全返回。
+- 会释放所有子节点、字符串内容、数组成员、对象成员。
+
+## 错误码
+
+定义在 `jsonmain.h` 的 `jsonError` 枚举里。
+
+| 错误码 | 含义 |
+|---|---|
+| `JSON_SUCCESSFULOP` | 操作成功 |
+| `JSON_NULLPATH` | 文件路径为 NULL |
+| `JSON_NULLSTR` | 传入的 jsonString 指针为 NULL |
+| `JSON_NULLSTRBUF` | jsonString 的 data 为 NULL |
+| `JSON_NULLPARSER` | parser 为 NULL |
+| `JSON_ALLOCFAILED` | 内存分配失败 |
+| `JSON_OPENFILEFAILED` | 打开文件失败 |
+| `JSON_SEEKFAILED` | fseek 失败 |
+| `JSON_TELLFAILED` | ftell 失败 |
+| `JSON_TOOLARGE` | 文件太大，超出 size_t 范围 |
+| `JSON_READFAILED` | 读取文件失败 |
+| `JSON_PARSEERROR` | 解析错误 |
+| `JSON_UNEXPECTEDEND` | 文本意外结束 |
+| `JSON_INVALIDTOKEN` | 遇到非法字符 |
+
+部分错误码附带 `errno`，保存在 `parser->errnoStatus` 里，可用于进一步排查。
+
+## 数据类型
+
+JSON 有六种类型，对应 `jsonType` 枚举：
+
+| 枚举值 | JSON 类型 |
+|---|---|
+| `JSON_NULL` | null |
+| `JSON_BOOL` | true / false |
+| `JSON_NUMBER` | 数字 |
+| `JSON_STRING` | 字符串 |
+| `JSON_ARRAY` | 数组 |
+| `JSON_OBJECT` | 对象 |
+
+节点结构 `jsonNode` 内部用一个 union 保存具体内容：
+
+- `content.boolean` — bool
+- `content.number` — double
+- `content.string` — jsonString（指针 + 长度）
+- `content.array` — jsonArray
+- `content.object` — jsonObject
+
+对象成员结构 `jsonMember` 有一个 `key`（jsonString）和一个 `value`（`jsonNode*`）。
+
+## 示例
+
+当前 API 只支持"解析"和"销毁"。节点内容暂时不对外暴露。
+
+```c
+#include "jsonmain.h"
 #include <stdio.h>
 
-int main() {
-    string s = newStringFrom("Hello");
-    if (getStringStatus(s) != AVAILABLE) {
-        fprintf(stderr, "String creation failed\n");
+int main(void) {
+    jsonParser* parser = jsonParserCreate("data.json");
+
+    if (jsonGetParserStatus(parser) != JSON_SUCCESSFULOP) {
+        printf("打开或创建 parser 失败，错误码：%d\n",
+               jsonGetParserStatus(parser));
         return 1;
     }
 
-    string t = appendStringFrom(s, " World!");
-    if (t) {
-        printf("%s\n", getStringContent(t)); // Hello World!
-        deleteString(t);
+    jsonNode* root = jsonParse(parser);
+    if (!root) {
+        printf("解析失败，错误码：%d\n", jsonGetParserStatus(parser));
+        return 1;
     }
 
-    int num;
-    if (toInt(s, &num) == SUCCEEDTOINT) {
-        printf("Parsed number: %d\n", num);
-    }
+    // 拿到根节点了。
+    // 当前版本没有访问接口，无法读取节点内容。
+    // 保留 root 指针，等待后续版本补充访问 API。
 
-    deleteString(s);
+    jsonNodeDestroy(root);
     return 0;
 }
 ```
 
-### ArrayList 操作
-
-```c
-#include "JC_ArrayList.h"
-#include <stdio.h>
-
-int main() {
-    int dummy = 0;
-    ArrayList* list = newArrayList(&dummy);
-    // 展开成 alCreate(sizeof(int))
-
-    if (alGetStatus(list) != AVAILABLEAL) {
-        fprintf(stderr, "ArrayList creation failed\n");
-        return 1;
-    }
-
-    int val = 42;
-    alPushBack(list, &val);
-    val = 100;
-    alPushBack(list, &val);
-
-    int out;
-    alGetAt(list, 0, &out);
-    printf("First element: %d\n", out);
-
-    alDestroy(list);
-    return 0;
-}
-```
-
-### LinkedList 操作
-
-```c
-#include "JC_LinkedList.h"
-#include <stdio.h>
-
-int main() {
-    int dummy = 0;
-    linkedList list = newLinkedList(&dummy);
-    // 展开成 llCreate(sizeof(int))
-
-    if (llGetStatus(list) != LL_AVAILABLE) {
-        fprintf(stderr, "LinkedList creation failed\n");
-        return 1;
-    }
-
-    /* 按值操作 */
-    int val = 42;
-    llPushBack(list, &val);      // 42
-    val = 100;
-    llPushFront(list, &val);     // 100, 42
-    val = 7;
-    llInsertAt(list, &val, 1);   // 100, 7, 42
-
-    int out;
-    llGetContentAt(list, 1, &out);
-    printf("Element at index 1: %d\n", out);   // 7
-
-    /* 按节点操作 */
-    linkedListNode node;
-    llGetNodeAt(list, 2, &node);   // 指向 42
-    val = 999;
-    llInsertBefore(list, node, &val);  // 100, 7, 999, 42
-    llMoveToFront(list, node);         // 42, 100, 7, 999
-    llRemoveNode(list, node);          // 100, 7, 999
-
-    /* 遍历 */
-    linkedListNode h, p;
-    llGetHeader(list, &h);
-    llGetFrontNode(list, &p);
-    while (p != h) {
-        llGetFromNode(list, p, &out);
-        printf("%d ", out);
-        llNext(&p);
-    }
-    printf("\n");
-
-    llDestroy(list);
-    return 0;
-}
-```
-
-### 链表拼接
-
-```c
-#include "JC_LinkedList.h"
-#include <stdio.h>
-
-int main() {
-    linkedList a = llCreate(sizeof(int));
-    linkedList b = llCreate(sizeof(int));
-
-    int v;
-    v = 1; llPushBack(a, &v);
-    v = 2; llPushBack(a, &v);
-    v = 3; llPushBack(b, &v);
-    v = 4; llPushBack(b, &v);
-
-    /* 把 b 拼到 a 末尾，O(1)，b 被消耗 */
-    llSpliceBack(a, &b);
-    printf("count = %zu\n", llGetCount(a));   // 4
-
-    /* b 内部资源已被释放，只能 llDestroy 或 free */
-    llDestroy(b);
-
-    llDestroy(a);
-    return 0;
-}
-```
-
-### HashMap 操作
-
-```c
-#include "JC_HashMap.h"
-#include <stdio.h>
-#include <string.h>
-
-int main(void)
-{
-    /* -------------------------------------------------- */
-    /* 1. 创建注册表                                      */
-    /* -------------------------------------------------- */
-    HashMapRegistry* reg = hmRegistryCreate();
-    if (!reg) {
-        fprintf(stderr, "failed to create registry\n");
-        return 1;
-    }
-
-    /* -------------------------------------------------- */
-    /* 2. 创建一个 int -> int 的 map                      */
-    /*    hmCreate 第一个参数是 registry                  */
-    /*    key 是 int*，value 是 int*，所以传 NULL, NULL   */
-    /*    表示用默认的 fnv1a + memcmp                     */
-    /* -------------------------------------------------- */
-    int  key   = 0;   /* 仅用于取类型 */
-    int  value = 0;
-    hashMap scores = hmCreate(reg, &key, &value, NULL, NULL);
-
-    if (!hmIsValid(scores)) {
-        fprintf(stderr, "failed to create map: %s\n",
-                hmStatusToCharArray(hmGetLastCreateStatus(reg)));
-        hmRegistryDestroy(reg);
-        return 1;
-    }
-
-    /* -------------------------------------------------- */
-    /* 3. 插入                                            */
-    /*    hmPut 按值拷贝 key 和 value                     */
-    /* -------------------------------------------------- */
-    int k, v;
-
-    k = 1; v = 100;  hmPut(scores, &k, &v);
-    k = 2; v = 200;  hmPut(scores, &k, &v);
-    k = 3; v = 300;  hmPut(scores, &k, &v);
-
-    printf("count = %zu\n", hmGetCount(scores));      /* 3 */
-    printf("buckets = %zu\n", hmGetBucketCount(scores));
-
-    /* -------------------------------------------------- */
-    /* 4. 查询                                            */
-    /*    hmGet 把 value 拷贝到 out                       */
-    /* -------------------------------------------------- */
-    k = 2;
-    int out = 0;
-    if (hmGet(scores, &k, &out) == HM_SUCCESSFULOP) {
-        printf("key 2 -> %d\n", out);                 /* 200 */
-    }
-
-    /* -------------------------------------------------- */
-    /* 5. 判断 key 是否存在                               */
-    /* -------------------------------------------------- */
-    k = 3;
-    if (hmContains(scores, &k) == HM_SUCCESSFULOP) {
-        printf("key 3 exists\n");
-    }
-
-    /* -------------------------------------------------- */
-    /* 6. 删除单个 key                                    */
-    /* -------------------------------------------------- */
-    k = 1;
-    hmRemove(scores, &k);
-    printf("after remove, count = %zu\n", hmGetCount(scores));  /* 2 */
-
-    /* -------------------------------------------------- */
-    /* 7. 清空 map（保留容量）                            */
-    /* -------------------------------------------------- */
-    hmClear(scores);
-    printf("after clear, count = %zu\n", hmGetCount(scores));   /* 0 */
-
-    /* -------------------------------------------------- */
-    /* 8. 销毁句柄                                        */
-    /*    hmDestroy 接受 hashMap*，销毁后句柄清零         */
-    /* -------------------------------------------------- */
-    hmDestroy(&scores);
-    printf("scores valid after destroy: %d\n", hmIsValid(scores)); /* 0 */
-
-    /* -------------------------------------------------- */
-    /* 9. 字符串 key 的 map                               */
-    /*    key 类型是 char*，_Generic 会选 hashCString 和  */
-    /*    compareCString，按字符串内容比较                */
-    /* -------------------------------------------------- */
-    char* nameKey   = NULL;
-    int   nameValue = 0;
-    hashMap byName = hmCreate(reg, &nameKey, &nameValue, NULL, NULL);
-
-    char* n;
-    int   nv;
-
-    n = "alice"; nv = 20; hmPut(byName, &n, &nv);
-    n = "bob";   nv = 25; hmPut(byName, &n, &nv);
-    n = "carol"; nv = 30; hmPut(byName, &n, &nv);
-
-    /* 查询：用另一个内容相同的指针也能命中 */
-    char* search = "alice";
-    int   age    = 0;
-    if (hmGet(byName, &search, &age) == HM_SUCCESSFULOP) {
-        printf("alice is %d\n", age);                 /* 20 */
-    }
-
-    hmDestroy(&byName);
-
-    /* -------------------------------------------------- */
-    /* 10. 销毁注册表                                     */
-    /*     内部会回收所有残留的 map（即便上面忘了         */
-    /*     hmDestroy 某个句柄也不会泄漏 map 本身）        */
-    /* -------------------------------------------------- */
-    hmRegistryDestroy(reg);
-
-    return 0;
-}
-```
-
-**HashMap 用 char\* 作 key（按内容比较）**：
-
-### 读取一行输入
-
-```c
-#include "Scanner.h"
-
-string line = nextLine();   // 等价于 readLine()
-if (line && getStringStatus(line) == AVAILABLE) {
-    printf("You entered: %s\n", getStringContent(line));
-}
-deleteString(line);
-```
-
----
-
-## ⚠️ 重要提醒
-
-### 1. 始终检查实例状态
-
-在调用任何操作函数之前，务必使用 `alGetStatus` / `llGetStatus` / `getStringStatus` / `hmGetStatus` 检查实例是否为可用状态。
-
-非法状态（如 `NULLAL`、`INVALIDALTYPESIZE`、`NULLBUFFER`、`INVALIDHMSIZE`、`LL_NULLHEADER`）可能导致未定义行为。
-
-```c
-if (alGetStatus(list) != AVAILABLEAL) {
-    // 处理错误或退出
-}
-```
-最好不要将带有指针的结构体类型传给容器，容器使用浅拷贝，如果传入了，请注意是否该释放某个资源
-
-### 2. 内存管理
-
-使用 `alDestroy` / `llDestroy` / `deleteString` / `deleteSb` / `hmDestroy` 释放实例，库不会自动回收。
-
-对于 ArrayList / LinkedList，元素数据由库管理（逐字节拷贝），但元素本身若包含指针（如动态分配的字符串），指针指向的内容仍需调用者自行管理。
-
-`splitString` 返回的数组和其中的 String 对象都需要分别释放（先释放每个 String，再释放数组本身）。
-
-### 3. 错误码含义
-
-每个模块的状态码定义在各自的 `XxxSrc.h` 里：
-
-- `StringSrc.h` / `StringBuilderSrc.h`：`stringCommonStatus`
-- `ArrayListSrc.h`：`alStatus`
-- `LinkedListSrc.h`：`llStatus`
-- `HashMapSrc.h`：`hashMapStatus`
-
-建议使用 `stringStatusToArray` / `alStatusToArray` / `llStatusToCharArray` / `hmStatusToArray` 将状态码转换为可读字符串，便于调试。
-
-### 4. HashMap 的句柄机制
-
-HashMap 对外暴露的不是裸指针，而是一个句柄。这个设计被用于尽力解决几个常见问题：
-
-- **别名**：`map2 = map1` 只是复制 identifier，释放 `map1` 后 `map2` 自动失效，不会 double free 或 use-after-free。
-- **ABA**：identifier 全局递增、不复用，旧 identifier 永远查不到。
-- **无效句柄**：所有操作先查内部注册表，查不到就返回 `NULLHM`。
-
-### 5. LinkedList 的节点机制
-
-LinkedList 对外暴露节点句柄 `linkedListNode`，与值操作接口并存：
-
-- **值操作**：`llPushBack` / `llInsertAt` / `llGetContentAt` 等，调用方只关心数据，不接触节点；
-- **节点操作**：`llGetNodeAt` / `llInsertBefore` / `llMoveBefore` / `llRemoveNode` 等，调用方持有节点句柄，可以获得 O(1) 的插入、删除、移动性能。
-
-节点句柄在节点被删除后即悬垂，调用方应遵守"删除后不再使用"的约定。链表内部有哨兵节点 `header`，`llGetHeader` 可获取；哨兵不能通过 `llRemoveNode` 删除，也不能通过 `llSetOfNode` 写入内容。
-
-### 6. 扩容策略
-
-ArrayList 采用倍增扩容（容量不足时翻倍），保证大量插入的均摊性能 O(1)。
-
-HashMap 采用负载因子控制：超过 0.75 扩容翻倍，最小桶数 16，避免抖动。
-
-LinkedList 每个节点单独分配，没有容量概念，不需要扩容/缩容。
-
-若对内存占用敏感，ArrayList 可使用 `alShrinkToFit` 在批量插入后收缩内存。
-
-### 7. 线程安全
-
-**本库 v1.5 非线程安全**。HashMap 的注册表是全局的（或由调用方持有的 `HashMapRegistry`），ArrayList / String / StringBuilder / LinkedList 的实例状态由调用方管理。多线程环境中需调用者自行加锁。
-
-**后续版本计划**：为 HashMap 提供线程安全方案，为其他模块统一引入注册表机制解决别名问题，届时会一并考虑并发安全。
-
-### 8. 语言标准
-
-因该库使用了 `_Generic`，所以请注意使用 C11 或更高标准来编译此库。
-
----
-
-## 后续更新计划
-
-- **AL**：解决别名问题、线程安全
-- **HM**：线程安全
-- **LL**：解决别名问题
-- **SB**：线程安全
-- **String**：解决别名问题、线程安全
-- **Scanner**：整型等原生类型的标准输入读取函数
-- **FO**：文件操作封装
-- **SQL 扩展库**：SQLite 封装、MySQL 封装
-- **模板版本**：AL / LL / HM 的宏模板，最大化类型安全
+## 已知限制
+
+1. **节点不透明。** `jsonNode`、`jsonMember` 等结构体定义在 `.c` 文件里，头文件只有前向声明。用户拿到 `jsonNode*` 后无法访问节点内容。
+2. **无解析器销毁函数。** `jsonParserCreate` 会分配 parser 和文本内存，当前没有 `jsonParserDestroy`，会造成内存泄漏。
+3. **只能从文件解析。** 不支持从字符串、内存缓冲区、stdin 解析。
+4. **无序列化。** 不能把节点树写回 JSON 文本。
+5. **一次性读入内存。** 解析时需要把整个文件装入内存，超大文件会失败。
+6. **数字用 double。** 大整数会丢失精度。
+
+## 解析器行为
+
+- **空白字符**：只认空格、制表、换行、回车（严格按 JSON 标准）。
+- **字符串**：完整支持转义，包括 `\"`、`\\`、`\/`、`\b`、`\f`、`\n`、`\r`、`\t`、`\uXXXX`。
+- **Unicode**：`\uXXXX` 会转成 UTF-8 输出。支持代理对（`\uD800`-`\uDBFF` 加 `\uDC00`-`\uDFFF`）。
+- **数字**：严格按 JSON 语法校验（不允许前导零、尾随小数点、缺少整数部分等）。
+- **尾部内容**：解析完根节点后，如果后面还有非空白内容，会报 `JSON_PARSEERROR`。
+- **嵌套深度**：递归下降解析器，无深度限制，超深嵌套可能导致栈溢出。
+- **大文件**：使用 64 位 fseek/ftell（Windows 用 `_fseeki64`，POSIX 用 `fseeko`/`ftello`），不受 2GB 限制。但仍受内存上限约束。
+
+## 待办
+
+- 解析器销毁函数
+- 节点访问接口
+- 从字符串 / 缓冲区解析
+- 序列化
+- 流式解析
