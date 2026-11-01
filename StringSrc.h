@@ -5,6 +5,7 @@ typedef enum stringStatus {
 	STR_AVAILABLE = 0,					// 实例可用
 	STR_NULLBUFFER = 1,					// 实例的 buffer 为 NULL
 	STR_EMPTYBUFFER,					// buffer 为空（未分配）
+	STR_LENOUTOFTYPEMAX,				// 字符串长度超过了某个类型的最大值
 
 	STR_EMPTY,							// String 空串
 	STR_BLANK,							// String 全空白
@@ -41,6 +42,7 @@ typedef enum stringStatus {
 
 	STR_NULLCHAR,						// 无效的待接受 char*
 	STR_NULLARRAY,						// 输出数组指针为 NULL
+	STR_NULLRECEIVER,					// 结果接收器为NULL
 
 	STR_IDXOUTBOUNDS,					// 索引越界
 	STR_SUCCESSFULIDX,					// 索引有效

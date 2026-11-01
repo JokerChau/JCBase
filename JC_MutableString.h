@@ -1,60 +1,68 @@
 #pragma once
 
 #include "wheel_ex.h"
-#include "StringBuilderSrc.h"
+#include "MutableStringSrc.h"
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef struct StringBuilder StringBuilder;
-typedef StringBuilder* stringBuilder;
+typedef struct MutableString MutableString;
+typedef MutableString* mutableString;
+typedef struct String String;
+typedef String* string;
 
-#include "JC_String.h"
+wheels mutableString jcms_new(void);
 
-wheels stringBuilder newSb();
+wheels mutableString jcms_newFrom(const char* const content);
 
-wheels stringBuilder newSbFrom(const char* const ch);
+wheels void jcms_delete(mutableString ms);
 
-wheels void deleteSb(stringBuilder sb);
+wheels int jcms_getStatus(const MutableString* const ms);
 
-wheels int getSbStatus(const StringBuilder* const sb);
+wheels size_t jcms_getLength(const MutableString* const ms);
 
-wheels size_t getSbLength(const StringBuilder* const sb);
+wheels const char* jcms_viewBuffer(const MutableString* const ms);
 
-wheels const char* getSbBuffer(const StringBuilder* const sb);
+wheels int jcms_setContent(const mutableString ms, const char* const content);
 
-wheels const char* getSbContent(const StringBuilder* const sb);
+wheels int jcms_changeAt(const mutableString ms, size_t index, char ch);
 
-wheels int setSbContent(StringBuilder* const str, const char* const content);
+wheels const char* jcms_statusToCharArray(const int status);
 
-wheels int changeAt(stringBuilder str, size_t index, char ch);
+wheels int jcms_appendWithInst(const mutableString ms, const MutableString* const src);
 
-wheels const char* sbStatusToCharArray(const int status);
+wheels int jcms_appendWithCh(const mutableString ms, const char* const ch);
 
-wheels int appendSb(StringBuilder* sb, const StringBuilder* const src);
+wheels int jcms_reverse(mutableString ms);
 
-wheels int appendSbFrom(stringBuilder sb, const char* const ch);
+wheels int jcms_split(const MutableString* const ms, char delimiter,
+	mutableString** outArray, size_t* count,
+	bool removeEmptyEntries);
 
-wheels int reverseSb(stringBuilder sb);
+wheels int jcms_trim(const mutableString ms);
 
-wheels int splitSb(const StringBuilder* const str, char delimiter, stringBuilder** outArray, size_t* count);
+wheels int jcms_trimFront(const mutableString ms);
 
-wheels int trimSb(stringBuilder const str);
+wheels int jcms_trimBack(const mutableString ms);
 
-wheels stringBuilder cloneSb(const StringBuilder* const str);
+wheels mutableString jcms_clone(const MutableString* const ms);
 
-wheels int charAtSb(const StringBuilder* const str, size_t index, char* result);
+wheels int jcms_charAt(const MutableString* const ms, size_t index, char* result);
 
-wheels int sbIndexOfFront(const StringBuilder* const str, char ch, size_t* result);
+wheels int jcms_indexOfFront(const MutableString* const ms, char ch, size_t* result);
 
-wheels int sbIndexOfBack(const StringBuilder* const str, char ch, size_t* result);
+wheels int jcms_indexOfBack(const MutableString* const ms, char ch, size_t* result);
 
-wheels stringBuilder subSbInLengthFront(const StringBuilder* const str, size_t start, size_t length);
+wheels int jcms_indexOfFrontWithInst(const MutableString* const ms, const MutableString* const sub, size_t* result);
+
+wheels int jcms_indexOfFrontWithCh(const MutableString* const ms, const char* const ch, size_t* result);
+
+wheels mutableString jcms_subInLengthFrontWithInst(const MutableString* const ms, size_t start, size_t length);
 
 wheels stringBuilder subSbInLengthBack(const StringBuilder* const str, size_t end, size_t length);
 
 wheels stringBuilder subSbInRange(const StringBuilder* const str, size_t start, size_t end);
 
-wheels stringBuilder subSbInLengthFrontFrom(const char* const ch, size_t start, size_t length);
+wheels mutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, size_t length);
 
 wheels stringBuilder subSbInLengthBackFrom(const char* const ch, size_t end, size_t length);
 
