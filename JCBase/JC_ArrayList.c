@@ -1,15 +1,20 @@
 #include "JC_ArrayList.h"
+#include "JC_ArrayListStructures.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
-typedef struct ArrayList {
-	void* data;				// 数据内容
-	size_t alCount;			// 当前数量
-	size_t alMaxCount;		// 最大容量
-	size_t typeSize;		// 类型大小
-	int status;				// 当前AL状态
-}ArrayList;
+// enable
+static jc_ArrayList wrapAl(void* data, size_t count, size_t maxCount, size_t typeSize, int status) {
+	jc_ArrayList list = (jc_ArrayList)malloc(sizeof(JC_ArrayList));
+	if (!list)return NULL;
+	list->data = data;
+	list->count = count;
+	list->maxCount = maxCount;
+	list->typeSize = typeSize;
+	list->status = status;
+	return list;
+}
 
 static int alRealloc(ArrayList* list) {
 	if (list->alCount >= list->alMaxCount) {
@@ -42,60 +47,58 @@ static int alRealloc(ArrayList* list) {
 	else return AL_SUCCESSFULOP;
 }
 
-// 构造函数
-ArrayList* alCreate(size_t typeSize) {	//传入类型大小
-	// 为实例申请内存
-	ArrayList* list = (ArrayList*)malloc(sizeof(ArrayList));
-	// 申请失败
-	if (!list)return NULL;
-
-	// 类型大小初始化，其余成员置空
-	list->data = NULL;
-	list->alCount = 0;
-	list->alMaxCount = 0;
-	list->typeSize = typeSize;
-	// 数据类型无效，状态设置为非法类型AL_INVALIDTYPESIZE
-	if (!typeSize) {
-		list->status = AL_INVALIDTYPESIZE;
-		return list;
+// enable
+jc_ArrayList jcal_inner_new(size_t sizeType) {
+	int status = JC_AL_AVAILABLE;
+	if (!sizeType) {
+		status = JC_AL_INVALIDTYPESIZE;
 	}
-	list->status = AL_AVAILABLE;
-
-	return list;
+	return wrapAl(NULL, 0, 0, sizeType, status);
 }
 
-// 析构函数
-void alDestroy(ArrayList* list) {
-	// 如果本来该实例为NULL则已经置空，释放
+// enable
+void jcal_delete(jc_ArrayList list) {
 	if (!list)return;
-
-	// 如果数据存在则释放并指向NULL
-	if (list->data) {
-		free(list->data);
-		list->data = NULL;
-	}
+	if (list->data)free(list->data);
 	free(list);
 }
 
-// 获取实例状态
-int alGetStatus(const ArrayList* const list) {
-	// 如果实例为NULL，则返回空实例状态AL_NULL
-	if (!list)return AL_NULL;
+// enable
+size_t jcal_getLength(const jc_ArrayList list) {
+	if (!list)return 0;
+	if (!list->data)return 0;
+	return list->count;
+}
 
+// enable
+size_t jcal_getMaxLength(const jc_ArrayList list) {
+	if (!list)return 0;
+	return list->maxCount;
+}
+
+// enable
+int jcal_getStatus(const jc_ArrayList list) {
+	if (!list)return JC_AL_NULL;
 	return list->status;
 }
 
-// 获取实例数量
-size_t alGetCount(const ArrayList* const list) {
-	// NULL实例被认为没有成员
-	if (!list)return 0;
-
-	return list->alCount;
-}
-
-size_t alGetMaxCount(const ArrayList* const list) {
-	if (!list)return 0;
-	return list->alMaxCount;
+int jcal_setMaxLength(jc_ArrayList list, size_t count) {
+	if (!list)return JC_AL_NULL;
+	if (list->status != JC_AL_AVAILABLE)return list->status;
+	if (count < list->count)return JC_AL_CAPACITYLESSTHANMIN;
+	if (count == list->maxCount)return JC_AL_SUCCESSFULOP;
+	if (count == 0 && list->count == 0) {
+		free(list->data);
+		list->data = NULL;
+		list->maxCount = 0;
+		return JC_AL_SUCCESSFULOP;
+	}
+	if (count > SIZE_MAX / list->typeSize)return JC_AL_REALLOCSIZEOUTBOUNDS;
+	void* newData = realloc(list->data, count * list->typeSize);
+	if (!newData)return JC_AL_REALLOCFAIL;
+	list->data = newData;
+	list->maxCount = count;
+	return JC_AL_SUCCESSFULOP;
 }
 
 int alSetMaxCount(ArrayList* const list, size_t count) {

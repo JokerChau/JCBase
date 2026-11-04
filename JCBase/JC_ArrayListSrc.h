@@ -18,3 +18,14 @@ typedef enum alStatus {
 	AL_CAPACITYLESSTHANMIN,			// 所传容量过小
 	AL_REALLOCSIZEOUTBOUNDS,		// realloc函数所传参数过大
 }alStatus;
+
+typedef enum JC_ArrayListStatus {
+	JC_AL_NULL = -2,					// NULL AL实例
+	JC_AL_AVAILABLE = 100,				// 可用实例
+	JC_AL_INVALIDTYPESIZE,				// 非法数据类型（大小）
+	JC_AL_ALREADYEMPTY,					// 实例元素数量本就为0
+	// 操作状态
+	JC_AL_SUCCESSFULOP,					// 操作成功
+	JC_AL_WRONGSTATUS,					// 未知实例状态（非可用），
+
+};
