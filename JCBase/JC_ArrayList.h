@@ -53,9 +53,11 @@
 *	5. Rules of naming status:
 *	
 *		Take ArrayList as an example, the status of the ArrayList is defined as follows:
-*		JC_AL_NULL = -2,					// NULL AL实例
+*		JC_AL__NULL = -2,					// NULL AL实例
 *		Take crazy ArrayList as an example, the status of the crazy ArrayList is defined as follows:
-*		JC_CAl_NULL = -2,					// NULL CAL实例
+*		JC_CAl__NULL = -2,					// NULL CAL实例
+*     
+*       JC_ArrayListStatus as the name of JC_ArrayList
 *	
 *	6. About file name:
 *		Take ArrayList as an example, the file name is JC_ArrayList.h, the source file name is JC_ArrayList.c, and the header file for the status definition is JC_ArrayListSrc.h.
@@ -84,19 +86,13 @@ wheels int jcal_getStatus(const jc_ArrayList list);
 
 wheels int jcal_setMaxLength(jc_ArrayList list, size_t count);
 
+wheels int jcal_clear(jc_ArrayList list);
+
+wheels int jcal_shrinkToFit(const jc_ArrayList list);
+
 typedef struct ArrayList ArrayList;
 
 typedef ArrayList* arrayList;
-
-wheels void alDestroy(ArrayList* list);
-
-wheels int alGetStatus(const ArrayList* const list);
-
-wheels size_t alGetCount(const ArrayList* const list);
-
-wheels size_t alGetMaxCount(const ArrayList* const list);
-
-wheels int alSetMaxCount(ArrayList* const list, size_t count);
 
 wheels int alShrinkToFit(ArrayList* const list);
 

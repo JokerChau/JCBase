@@ -3,6 +3,8 @@
 一个轻量级、模块化的 C 语言基础工具库，提供不可变字符串（String）、可变字符串（StringBuilder）、动态数组（ArrayList）、链表（LinkedList）、哈希表（HashMap）等常用数据结构，以及String配套的输入（Scanner中的nextLine）、类型转换、字符串处理函数。
 
 **设计目标**：简洁、安全、易用，适合作为 C/C++ 项目的底层基础组件。
+[点击查看更新日志](UPDATE.md)
+[点击查看ArrayList.md](ArrayList.md)[点击查看ArrayList_EN.md](ArrayList_EN.md)
 
 ---
 
@@ -645,5 +647,3 @@ LinkedList 每个节点单独分配，没有容量概念，不需要扩容/缩�
 因该库使用了 `_Generic`，所以请注意使用 C11 或更高标准来编译此库。
 
 ---
-
-[点击查看更新日志](UPDATE.md)
