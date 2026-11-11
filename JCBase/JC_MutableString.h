@@ -10,6 +10,8 @@ typedef JC_MutableString* jc_MutableString;
 typedef struct JC_String JC_String;
 typedef JC_String* jc_String;
 
+typedef enum JC_SpaceMode JC_SpaceMode;
+
 wheels jc_MutableString jcms_new(void);
 
 wheels jc_MutableString jcms_newFrom(const char* const content);
@@ -38,11 +40,11 @@ wheels int jcms_split(const JC_MutableString* const ms, char delimiter,
 	jc_MutableString** outArray, size_t* count,
 	bool removeEmptyEntries);
 
-wheels int jcms_trim(const jc_MutableString ms);
+wheels int jcms_trim(const jc_MutableString ms, JC_SpaceMode mode);
 
-wheels int jcms_trimFront(const jc_MutableString ms);
+wheels int jcms_trimFront(const jc_MutableString ms, JC_SpaceMode mode);
 
-wheels int jcms_trimBack(const jc_MutableString ms);
+wheels int jcms_trimBack(const jc_MutableString ms, JC_SpaceMode mode);
 
 wheels jc_MutableString jcms_clone(const JC_MutableString* const ms);
 
@@ -80,38 +82,52 @@ wheels bool jcms_startWithCh(const JC_MutableString* const ms, const char* const
 
 wheels bool jcms_startWithInst(const JC_MutableString* const ms, const JC_MutableString* const prefix);
 
-wheels bool sbEndWith(const StringBuilder* const str, const char* const suffix);
+wheels bool jcms_endWithCh(const JC_MutableString* const ms, const char* const suffix);
 
-wheels bool sbStartWithString(const StringBuilder* const str, const StringBuilder* const prefix);
+wheels bool jcms_endWithInst(const JC_MutableString* const ms, const JC_MutableString* const suffix);
 
-wheels bool sbEndWithString(const StringBuilder* const str, const StringBuilder* const suffix);
+wheels bool jcms_isEmpty(const JC_MutableString* const ms);
 
-wheels bool sbIsEmpty(const StringBuilder* const str);
+wheels bool jcms_isBlank(const JC_MutableString* const ms, JC_SpaceMode mode);
 
-wheels bool sbIsBlank(const StringBuilder* const str);
+wheels bool jcms_equalsWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj);
 
-wheels bool equalsSb(const StringBuilder* const str1, const StringBuilder* const str2);
+wheels bool jcms_equalsIgnoreCaseWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj, JC_SpaceMode mode);
 
-wheels bool equalsSbFrom(const StringBuilder* const str, const char* const ch);
+wheels bool jcms_equalsWithCh(const JC_MutableString* const ms, const char* const obj);
 
-wheels bool containsSb(const StringBuilder* const str1, const StringBuilder* const str2);
+wheels bool jcms_equalsIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const obj, JC_SpaceMode mode);
 
-wheels bool containsSbFrom(const StringBuilder* const str, const char* const ch);
+wheels bool jcms_containsWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj);
 
-wheels char* sbToArray(const StringBuilder* const str);
+wheels bool jcms_containsIgnoreCaseWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj, JC_SpaceMode mode);
 
-wheels int sbToInt(const StringBuilder* const str, int* result);
+wheels bool jcms_containsWithCh(const JC_MutableString* const ms, const char* const obj);
 
-wheels int sbToLong(const StringBuilder* const str, long* result);
+wheels bool jcms_containsIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const obj, JC_SpaceMode mode);
 
-wheels int sbToLongLong(const StringBuilder* const str, long long* result);
+wheels int jcms_compareWithInst(const JC_MutableString* const ms1, const JC_MutableString* const ms2, int* result);
 
-wheels int sbToFloat(const StringBuilder* const str, float* result);
+wheels int jcms_compareIgnoreCaseWithInst(const JC_MutableString* const ms1, const JC_MutableString* const ms2, int* result, JC_SpaceMode mode);
 
-wheels int sbToDouble(const StringBuilder* const str, double* result);
+wheels int jcms_compareWithCh(const JC_MutableString* const ms, const char* const ch, int* result);
 
-wheels int sbToLowerCase(StringBuilder* str);
+wheels int jcms_compareIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const ch, int* result, JC_SpaceMode mode);
 
-wheels int sbToUpperCase(StringBuilder* str);
+wheels char* jcms_toCharArray(const JC_MutableString* const ms);
 
-wheels string sbToString(const StringBuilder* const str);
+wheels int jcms_toInt(const JC_MutableString* const ms, int* result, JC_SpaceMode mode);
+
+wheels int jcms_toLong(const JC_MutableString* const ms, long* result, JC_SpaceMode mode);
+
+wheels int jcms_toLongLong(const JC_MutableString* const ms, long long* result, JC_SpaceMode mode);
+
+wheels int jcms_toFloat(const JC_MutableString* const ms, float* result, JC_SpaceMode mode);
+
+wheels int jcms_toDouble(const JC_MutableString* const ms, double* result, JC_SpaceMode mode);
+
+wheels int jcms_toLowerCase(JC_MutableString* ms, JC_SpaceMode mode);
+
+wheels int jcms_toUpperCase(JC_MutableString* ms, JC_SpaceMode mode);
+
+wheels jc_String jcms_toString(const JC_MutableString* const ms);

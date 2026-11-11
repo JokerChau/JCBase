@@ -14,19 +14,6 @@ static jc_String jcstr_new(void) {
 	return jcstr_newFrom("");
 }
 
-// mode: 0 = 跟随 locale（标准 isspace）, 1 = 固定 ASCII 空白
-// 未知 mode 行为和 0 一致，避免“意外把非空白当空白吞掉”
-static bool isSpaceInternal(unsigned char c, JC_SpaceMode mode) {
-	switch (mode) {
-	case JC_SPACE_ASCII:
-		return c == ' ' || c == '\t' || c == '\n' ||
-			c == '\r' || c == '\v' || c == '\f';
-	case JC_SPACE_LOCALE:
-	default:
-		return isspace((int)c) != 0;
-	}
-}
-
 // 将已知的char*、状态和长度封装成一个string实例，不成功则返回NULL
 static jc_String wrapString(char* buffer, int status, size_t length) {
 	jc_String temp = (jc_String)malloc(sizeof(JC_String));
@@ -253,56 +240,6 @@ static jc_String replaceAllStrCore(const JC_String* const str,
 	return result;
 }
 
-static int toLowerInternal(unsigned char c, JC_SpaceMode mode) {
-	switch (mode) {
-	case JC_SPACE_ASCII:
-		return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
-	default:
-		return tolower((int)c);
-	}
-}
-
-static int toUpperInternal(unsigned char c, JC_SpaceMode mode) {
-	switch (mode) {
-	case JC_SPACE_ASCII:
-		return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
-	default:
-		return toupper((int)c);
-	}
-}
-
-
-// 忽略大小写的子串查找——needle 可为空串（空串是任何串的子串）
-static bool containsIgnoreCase(const char* haystack, const char* needle, JC_SpaceMode mode) {
-	size_t hayLen = strlen(haystack);
-	size_t needleLen = strlen(needle);
-	if (needleLen > hayLen) return false;
-
-	for (size_t i = 0; i + needleLen <= hayLen; i++) {
-		bool match = true;
-		for (size_t j = 0; j < needleLen; j++) {
-			if (toLowerInternal((unsigned char)haystack[i + j], mode) !=
-				toLowerInternal((unsigned char)needle[j], mode)) {
-				match = false;
-				break;
-			}
-		}
-		if (match) return true;
-	}
-	return false;
-}
-
-// 忽略大小写的字符串比较——返回 <0 / 0 / >0
-static int compareIgnoreCase(const char* a, const char* b, JC_SpaceMode mode) {
-	while (*a && *b) {
-		int ca = toLowerInternal((unsigned char)*a, mode);
-		int cb = toLowerInternal((unsigned char)*b, mode);
-		if (ca != cb) return ca - cb;
-		a++;
-		b++;
-	}
-	return (unsigned char)*a - (unsigned char)*b;
-}
 
 // 解析 buffer 的 [0, len) 为一个 long long
 // 返回 STR_SUCCESSFULOP / STR_BLANK / STR_NOTLONGLONG / STR_OVERFLOWLONGLONG
@@ -947,7 +884,10 @@ int jcstr_compareIgnoreCaseWithInst(const JC_String* const str1, const JC_String
 int jcstr_compareWithCh(const JC_String* const str, const char* const ch, int* result) {
 	if (!result)return JC_STR__NULL_RECEIVER;
 	if (!str)return JC_STR__NULL;
-	if (!str->buffer && !ch)return JC_STR__SUCCESSFUL_OP;
+	if (!str->buffer && !ch) {
+		*result = 0;
+		return JC_STR__SUCCESSFUL_OP;
+	}
 	if (!str->buffer || !ch)return JC_STR__NULL_BUFFER;
 	*result = strcmp(str->buffer, ch);
 	return JC_STR__SUCCESSFUL_OP;
@@ -956,7 +896,10 @@ int jcstr_compareWithCh(const JC_String* const str, const char* const ch, int* r
 int jcstr_compareIgnoreCaseWithCh(const JC_String* const str, const char* const ch, int* result, JC_SpaceMode mode) {
 	if (!result)return JC_STR__NULL_RECEIVER;
 	if (!str)return JC_STR__NULL;
-	if (!str->buffer && !ch)return JC_STR__SUCCESSFUL_OP;
+	if (!str->buffer && !ch) {
+		*result = 0;
+		return JC_STR__SUCCESSFUL_OP;
+	}
 	if (!str->buffer || !ch)return JC_STR__NULL_BUFFER;
 	*result = compareIgnoreCase(str->buffer, ch, mode);
 	return JC_STR__SUCCESSFUL_OP;

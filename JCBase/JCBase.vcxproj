@@ -47,8 +47,13 @@
   <ItemGroup>
     <None Include="ArrayList.md" />
     <None Include="ArrayList_EN.md" />
+    <None Include="MutableString.md" />
+    <None Include="MutableStringSemantics.md" />
+    <None Include="MutableStringSemantics_EN.md" />
+    <None Include="MutableString_EN.md" />
     <None Include="String.md" />
     <None Include="StringSemantics.md" />
+    <None Include="StringSemantics_EN.md" />
     <None Include="String_EN.md" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -10,10 +10,7 @@ typedef JC_String* jc_String;
 typedef struct JC_MutableString JC_MutableString;
 typedef JC_MutableString* jc_MutableString;
 
-typedef enum {
-	JC_SPACE_LOCALE = 0,
-	JC_SPACE_ASCII,
-} JC_SpaceMode;
+typedef enum JC_SpaceMode JC_SpaceMode;
 
 wheels jc_String jcstr_newFrom(const char* const content);
 

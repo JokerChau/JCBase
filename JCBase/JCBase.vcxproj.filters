@@ -90,5 +90,10 @@
     <None Include="String.md" />
     <None Include="String_EN.md" />
     <None Include="StringSemantics.md" />
+    <None Include="MutableString.md" />
+    <None Include="MutableString_EN.md" />
+    <None Include="StringSemantics_EN.md" />
+    <None Include="MutableStringSemantics.md" />
+    <None Include="MutableStringSemantics_EN.md" />
   </ItemGroup>
 </Project>

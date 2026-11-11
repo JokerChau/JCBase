@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
+#include <float.h>
 #include "JC_String.h"
 
 // 直接接管各种属性
@@ -261,6 +262,60 @@ static int replaceAllCore(jc_MutableString ms, const char* const target, const c
 	return JC_MS__SUCCESSFUL_OP;
 }
 
+// 解析 buffer 的 [0, len) 为一个 long long
+static int parseToLL(const char* buf, size_t len, long long* out, JC_SpaceMode mode) {
+	size_t start = 0;
+	while (start < len && isSpaceInternal((unsigned char)buf[start], mode)) start++;
+	size_t end = len;
+	while (end > start && isSpaceInternal((unsigned char)buf[end - 1], mode)) end--;
+	if (start == end) return JC_MS__BLANK;
+
+	bool isNeg = false;
+	size_t i = start;
+	if (buf[i] == '-' || buf[i] == '+') {
+		if (buf[i] == '-') isNeg = true;
+		i++;
+	}
+
+	long long limit = isNeg ? LLONG_MIN : LLONG_MIN + 1;
+	long long temp = 0;
+	int count = 0;
+
+	for (; i < end; i++) {
+		if (buf[i] >= '0' && buf[i] <= '9') {
+			int d = buf[i] - '0';
+			if (temp < (limit + d) / 10) return JC_MS__OVERFLOW_LONGLONG;
+			temp = 10 * temp - d;
+			count++;
+		}
+		else {
+			return JC_MS__NOT_LONGLONG;
+		}
+	}
+
+	if (!count) return JC_MS__NOT_LONGLONG;
+	*out = isNeg ? temp : -temp;
+	return JC_MS__SUCCESSFUL_OP;
+}
+
+static int parseToDouble(const char* buf, size_t len, double* out, JC_SpaceMode mode) {
+	size_t start = 0;
+	while (start < len && isSpaceInternal((unsigned char)buf[start], mode)) start++;
+	size_t end = len;
+	while (end > start && isSpaceInternal((unsigned char)buf[end - 1], mode)) end--;
+	if (start == end) return JC_MS__BLANK;
+
+	char* endptr = NULL;
+	errno = 0;
+	double value = strtod(buf + start, &endptr);
+
+	if (endptr != buf + end) return JC_MS__NOT_DOUBLE;
+	if (errno == ERANGE)     return JC_MS__OVERFLOW_DOUBLE;
+
+	*out = value;
+	return JC_MS__SUCCESSFUL_OP;
+}
+
 // mutableString构造器
 // enable
 jc_MutableString jcms_new(void) {
@@ -335,171 +390,72 @@ int jcms_changeAt(const jc_MutableString ms, size_t index, char ch) {
 
 const char* jcms_statusToCharArray(const int status) {
 	switch (status) {
-	case MS_NULL: {
-		return "null mutableString";
-	}
-	case MS_AVAILABLE: {
-		return "available mutableString";
-	}
-	case MS_NULLBUFFER: {
-		return "null buffer";
-	}
-	case MS_EMPTY: {
-		return "empty mutableString";
-	}
-	case MS_BLANK: {
-		return "blank mutableString";
-	}
+		// 实例状态
+	case JC_MS__NULL:                       return "null mutableString";
+	case JC_MS__AVAILABLE:                  return "available mutableString";
+	case JC_MS__NULL_BUFFER:                return "null buffer";
+	case JC_MS__EMPTY:                      return "empty mutableString";
+	case JC_MS__BLANK:                      return "blank mutableString";
 
-	case MS_FAILEDTOCOMBINE: {
-		return "failed to combine";
-	}
-	case MS_WRONGSTATUS: {
-		return "wrong mutableString status";
-	}
-	case MS_FAILEDTOREALLOC: {
-		return "failed to realloc";
-	}
-	case MS_FAILEDTOALLOC: {
-		return "failed to alloc";
-	}
+		// 操作成功
+	case JC_MS__SUCCESSFUL_OP:              return "successful operation";
+	case JC_MS__PARTIAL_SPLIT:              return "mutableString partial split";
 
-	case MS_NULLINT: {
-		return "null int pointer";
-	}
-	case MS_OVERFLOWINT: {
-		return "overflow int range";
-	}
-	case MS_NOTINT: {
-		return "not int";
-	}
-	case MS_SUCCEEDTOINT: {
-		return "succeed to change mutableString into int";
-	}
+		// 内存/操作错误
+	case JC_MS__ALLOCATION_FAILED:          return "failed to alloc";
+	case JC_MS__REALLOCATION_FAILED:        return "failed to realloc";
+	case JC_MS__LENGTH_OUT_OF_BOUNDS:       return "length out of bounds";
+	case JC_MS__WITHOUT_CHAR:               return "there is no char you want here";
+	case JC_MS__NO_TARGET_MATCHED:          return "target not matched";
 
-	case MS_NULLLONG: {
-		return "null long int pointer";
-	}
-	case MS_OVERFLOWLONG: {
-		return "overflow long int range";
-	}
-	case MS_NOTLONG: {
-		return "not long int";
-	}
-	case MS_SUCCEEDTOLONG: {
-		return "succeed to change mutableString into long int";
-	}
+		// 参数错误
+	case JC_MS__INVALID_START:              return "invalid start index";
+	case JC_MS__INVALID_END:                return "invalid end index";
+	case JC_MS__INVALID_INDEX:              return "invalid index";
+	case JC_MS__INDEX_OUT_OF_BOUNDS:        return "index out of bounds";
+	case JC_MS__INVALID_CHARACTER_FOR_CHANGE: return "invalid char for change";
+	case JC_MS__NULL_CHAR:                  return "null char pointer";
+	case JC_MS__INVALID_SOURCE:             return "invalid source pointer";
+	case JC_MS__NULL_ARRAY:                 return "null mutableString array";
+	case JC_MS__NULL_COUNT:                 return "count ptr null";
+	case JC_MS__NULL_RESULT:                return "result ptr null";
+	case JC_MS__NULL_TARGET:                return "target is null";
+	case JC_MS__INVALID_REPLACEMENT:        return "replacement is invalid";
+	case JC_MS__NULL_FOLLOWER:              return "follower instance is null";
+	case JC_MS__NULL_FOLLOWER_BUFFER:       return "follower buffer is null";
+	case JC_MS__NULL_RECEIVER:              return "receiver is null";
 
-	case MS_NULLLONGLONG: {
-		return "null long long int pointer";
-	}
-	case MS_OVERFLOWLONGLONG: {
-		return "overflow long long int range";
-	}
-	case MS_NOTLONGLONG: {
-		return "not long long int";
-	}
-	case MS_SUCCEEDTOLONGLONG: {
-		return "succeed to change mutableString into long long int";
-	}
+		// 数字解析：输出指针为 NULL
+	case JC_MS__NULL_INT:                   return "null int pointer";
+	case JC_MS__NULL_LONG:                  return "null long int pointer";
+	case JC_MS__NULL_LONGLONG:              return "null long long int pointer";
+	case JC_MS__NULL_FLOAT:                 return "null float pointer";
+	case JC_MS__NULL_DOUBLE:                return "null double pointer";
 
-	case MS_NULLFLOAT: {
-		return "null float pointer";
-	}
-	case MS_OVERFLOWFLOAT: {
-		return "overflow float range";
-	}
-	case MS_NOTFLOAT: {
-		return "not float";
-	}
-	case MS_SUCCEEDTOFLOAT: {
-		return "succeed to change mutableString into float";
-	}
+		// 数字解析：格式错误
+	case JC_MS__NOT_INT:                    return "not int";
+	case JC_MS__NOT_LONG:                   return "not long int";
+	case JC_MS__NOT_LONGLONG:               return "not long long int";
+	case JC_MS__NOT_FLOAT:                  return "not float";
+	case JC_MS__NOT_DOUBLE:                 return "not double";
 
-	case MS_NULLDOUBLE: {
-		return "null double pointer";
-	}
-	case MS_OVERFLOWDOUBLE: {
-		return "overflow double range";
-	}
-	case MS_NOTDOUBLE: {
-		return "not double";
-	}
-	case MS_SUCCEEDTODOUBLE: {
-		return "succeed to change mutableString into double";
-	}
+		// 数字解析：溢出
+	case JC_MS__OVERFLOW_INT:               return "overflow int range";
+	case JC_MS__OVERFLOW_LONG:              return "overflow long int range";
+	case JC_MS__OVERFLOW_LONGLONG:          return "overflow long long int range";
+	case JC_MS__OVERFLOW_FLOAT:             return "overflow float range";
+	case JC_MS__OVERFLOW_DOUBLE:            return "overflow double range";
 
-	case MS_NULLCHAR: {
-		return "null char pointer";
-	}
-	case MS_NULLARRAY: {
-		return "null mutableString array";
-	}
-	case MS_NULLCOUNT: {
-		return "null counter";
-	}
-	case MS_NULLTARGET: {
-		return "null target pointer";
-	}
-
-	case MS_IDXOUTBOUNDS: {
-		return "index out of bounds";
-	}
-	case MS_SUCCESSFULIDX: {
-		return "succeed to use the index";
-	}
-	case MS_SUCCEEDTOTRUNCATE: {
-		return "succeed to truncate the mutableString";
-	}
-	case MS_SUCCEEDTOFINDCH: {
-		return "succeed to find the char you want";
-	}
-	case MS_WITHOUTCH: {
-		return "there is no char you want here";
-	}
-	case MS_INVALIDSTART: {
-		return "invalid start index";
-	}
-	case MS_INVALIDEND: {
-		return "invalid end index";
-	}
-	case MS_INVALIDIDX: {
-		return "invalid index";
-	}
-	case MS_INVALIDREPLACEMENT: {
-		return "what you want to replace with is invalid";
-	}
-	case MS_LENOUTOFTYPEMAX: {
-		return "length out of type max";
-	}
-	case MS_INVALIDSRC: {
-		return "invalid source pointer";
-	}
-	case MS_INVALIDCHFORCHANGE: {
-		return "invalid char for change";
-	}
-
-	case MS_SUCCESSFULOP: {
-		return "successful operation";
-	}
-	case MS_PARTIALSPLIT: {
-		return "mutableString partial split";
-	}
-	case MS_NOTARGETMATCHED: {
-		return "target not matched";
-	}
-	default: {
-		return "Unknown status";
-	}
+	default:                                return "Unknown status";
 	}
 }
 
 // enable
 int jcms_appendWithInst(const jc_MutableString ms, const JC_MutableString* const src) {
-	int tempStatus = jcms_getStatus(ms);
-	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
-	tempStatus = jcms_getStatus(src);
-	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
+	if (!src)return JC_MS__NULL_FOLLOWER;
+	if (!src->buffer)return JC_MS__NULL_FOLLOWER_BUFFER;
 	if (!src->len)return JC_MS__SUCCESSFUL_OP;
 	if (!ms->len)return jcms_setContent(ms, src->buffer);
 	// 如果都不为空
@@ -509,9 +465,9 @@ int jcms_appendWithInst(const jc_MutableString ms, const JC_MutableString* const
 
 // enable
 int jcms_appendWithCh(const jc_MutableString ms, const char* const ch) {
-	int tempStatus = jcms_getStatus(ms);
-	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
-	if (!ch)return JC_MS__NULL_CHAR;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
+	if (!ch)return JC_MS__NULL_FOLLOWER;
 	uintptr_t bufStart = (uintptr_t)ms->buffer;
 	uintptr_t bufEnd = bufStart + ms->len;   // buffer + len 是有效地址，不溢出
 	uintptr_t srcPtr = (uintptr_t)ch;
@@ -597,12 +553,12 @@ int jcms_split(const JC_MutableString* const ms, char delimiter,
 }
 
 // enable
-int jcms_trim(const jc_MutableString ms) {
+int jcms_trim(const jc_MutableString ms, JC_SpaceMode mode) {
 	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t len = ms->len;
 	size_t start = 0;
-	while (start < len && isspace((unsigned char)ms->buffer[start])) {
+	while (start < len && isSpaceInternal((unsigned char)ms->buffer[start], mode)) {
 		start++;
 	}
 
@@ -613,7 +569,7 @@ int jcms_trim(const jc_MutableString ms) {
 	}
 
 	size_t end = len - 1;
-	while (end > start && isspace((unsigned char)ms->buffer[end])) {
+	while (end > start && isSpaceInternal((unsigned char)ms->buffer[end], mode)) {
 		end--;
 	}
 
@@ -630,12 +586,12 @@ int jcms_trim(const jc_MutableString ms) {
 }
 
 // enable
-int jcms_trimFront(const jc_MutableString ms) {
+int jcms_trimFront(const jc_MutableString ms, JC_SpaceMode mode) {
 	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t len = ms->len;
 	size_t start = 0;
-	while (start < len && isspace((unsigned char)ms->buffer[start])) {
+	while (start < len && isSpaceInternal((unsigned char)ms->buffer[start], mode)) {
 		start++;
 	}
 
@@ -657,11 +613,11 @@ int jcms_trimFront(const jc_MutableString ms) {
 }
 
 // enable
-int jcms_trimBack(const jc_MutableString ms) {
+int jcms_trimBack(const jc_MutableString ms, JC_SpaceMode mode) {
 	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t newLen = ms->len;
-	while (newLen > 0 && isspace((unsigned char)ms->buffer[newLen - 1]))newLen--;
+	while (newLen > 0 && isSpaceInternal((unsigned char)ms->buffer[newLen - 1], mode))newLen--;
 
 	if (newLen == ms->len)return JC_MS__SUCCESSFUL_OP;
 
@@ -864,6 +820,7 @@ jc_MutableString jcms_subInRangeWithCh(const char* const ch, size_t start, size_
 	return pkgMS(ch + start, length);
 }
 
+// enable
 int jcms_replaceFirstWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement) {
 	if (!ms)return JC_MS__NULL;
 	if (ms->status != JC_MS__AVAILABLE)return ms->status;
@@ -872,6 +829,7 @@ int jcms_replaceFirstWithInst(JC_MutableString* ms, const char* const target, co
 	return replaceFirstCore(ms, target, replacement->buffer);
 }
 
+// enable
 int jcms_replaceFirstWithCh(JC_MutableString* ms, const char* const target, const char* const replacement) {
 	if (!ms)return JC_MS__NULL;
 	if (ms->status != JC_MS__AVAILABLE)return ms->status;
@@ -881,6 +839,7 @@ int jcms_replaceFirstWithCh(JC_MutableString* ms, const char* const target, cons
 	return replaceFirstCore(ms, target, replacement);
 }
 
+// enable
 int jcms_replaceAllWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement) {
 	if (!ms) return JC_MS__NULL;
 	if (ms->status != JC_MS__AVAILABLE) return ms->status;
@@ -889,6 +848,7 @@ int jcms_replaceAllWithInst(JC_MutableString* ms, const char* const target, cons
 	return replaceAllCore(ms, target, replacement->buffer);
 }
 
+// enable
 int jcms_replaceAllWithCh(JC_MutableString* ms, const char* const target, const char* const replacement) {
 	if (!ms) return JC_MS__NULL;
 	if (ms->status != JC_MS__AVAILABLE) return ms->status;
@@ -898,10 +858,12 @@ int jcms_replaceAllWithCh(JC_MutableString* ms, const char* const target, const 
 	return replaceAllCore(ms, target, replacement);
 }
 
+// enable
 bool jcms_startWithCh(const JC_MutableString* const ms, const char* const prefix) {
 	if (!ms || !ms->buffer)return false;
 
-	if (!prefix || prefix[0] == '\0')return true;
+	if (!prefix)return false;
+	if (prefix[0] == '\0')return true;
 
 	size_t strLen = ms->len;
 	size_t preLen = strlen(prefix);
@@ -910,44 +872,43 @@ bool jcms_startWithCh(const JC_MutableString* const ms, const char* const prefix
 	return strncmp(ms->buffer, prefix, preLen) == 0;
 }
 
+// enable
 bool jcms_startWithInst(const JC_MutableString* const ms, const JC_MutableString* const prefix) {
-	if (!ms || !ms->buffer)return false;
-	if (!prefix || !prefix->buffer || !prefix->len)return true;
-	if (ms->len < prefix->len)return false;
-	return strncmp(ms->buffer, prefix->buffer, prefix->len) == 0;
+	if (!prefix)return false;
+	return jcms_startWithCh(ms, prefix->buffer);
 }
 
-bool MSEndWith(const mutableString* const str, const char* const suffix) {
-	if (!str || !str->buffer)return false;
+// enable
+bool jcms_endWithCh(const JC_MutableString* const ms, const char* const suffix) {
+	if (!ms || !ms->buffer)return false;
 
-	if (!suffix || suffix[0] == '\0')return true;
+	if (!suffix)return false;
 
-	size_t strLen = getMSLength(str);
+	if (suffix[0] == '\0')return true;
+
+	size_t strLen = ms->len;
 	size_t sufLen = strlen(suffix);
 	if (strLen < sufLen)return false;
 
-	return strncmp(str->buffer + (strLen - sufLen), suffix, sufLen) == 0;
+	return strncmp(ms->buffer + (strLen - sufLen), suffix, sufLen) == 0;
 }
 
-bool MSStartWithString(const mutableString* const str, const mutableString* const prefix) {
-	if (!prefix)return true;
-	return MSStartWith(str, prefix->buffer);
+// enable
+bool jcms_endWithInst(const JC_MutableString* const ms, const JC_MutableString* const suffix) {
+	if (!suffix)return false;
+	return jcms_endWithCh(ms, suffix->buffer);
 }
 
-bool MSEndWithString(const mutableString* const str, const mutableString* const suffix) {
-	if (!suffix)return true;
-	return MSEndWith(str, suffix->buffer);
+// enable
+bool jcms_isEmpty(const JC_MutableString* const ms) {
+	return !ms || !ms->buffer || ms->buffer[0] == '\0' ? true : false;
 }
 
-bool MSIsEmpty(const mutableString* const str) {
-	return !str || !str->buffer || str->buffer[0] == '\0' ? true : false;
-}
+bool jcms_isBlank(const JC_MutableString* const ms, JC_SpaceMode mode) {
+	if (jcms_isEmpty(ms))return true;
 
-bool MSIMSlank(const mutableString* const str) {
-	if (!str || !str->buffer)return true;
-
-	for (const char* p = str->buffer; *p; p++) {
-		if (!isspace((unsigned char)*p)) {
+	for (const char* p = ms->buffer; *p; p++) {
+		if (!isSpaceInternal((unsigned char)*p, mode)) {
 			return false;
 		}
 	}
@@ -955,367 +916,260 @@ bool MSIMSlank(const mutableString* const str) {
 	return true;
 }
 
-bool equalsMS(const mutableString* const str1, const mutableString* const str2) {
-	if (str1 == str2)return true;
-	if (!str1 || !str2)return false;
+bool jcms_equalsWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj) {
+	if (!ms && !obj)return true;
+	if (!ms || !obj)return false;
+	if (!ms->buffer && !obj->buffer)return true;
+	if (!ms->buffer || !obj->buffer)return false;
+	if (!ms->len && !obj->len)return true;
+	if (!ms->len || !obj->len)return false;
 
-	if ((!str1->buffer || str1->buffer[0] == '\0') && (!str2->buffer || str2->buffer[0] == '\0'))return true;
-	if ((!str1->buffer || str1->buffer[0] == '\0') || (!str2->buffer || str2->buffer[0] == '\0'))return false;
-
-	return strcmp(str1->buffer, str2->buffer) == 0;
+	return strcmp(obj->buffer, obj->buffer) == 0;
 }
 
-bool equalsMSFrom(const mutableString* const str, const char* const ch) {
-	if ((!str || !str->buffer) && !ch)return true;
-	if (((!str || !str->buffer) && ch) || ((str && str->buffer) && !ch))return false;
-	return strcmp(str->buffer, ch) == 0;
+bool jcms_equalsIgnoreCaseWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj, JC_SpaceMode mode) {
+	if (!ms && !obj)return true;
+	if (!ms || !obj)return false;
+	if (!ms->buffer && !obj->buffer)return true;
+	if (!ms->buffer || !obj->buffer)return false;
+	if (!ms->len && !obj->len)return true;
+	if (!ms->len || !obj->len)return false;
+
+	if (ms->len != obj->len)return false;
+	for (size_t i = 0; i < ms->len; i++)if (toLowerInternal((unsigned char)ms->buffer[i], mode) != toLowerInternal((unsigned char)obj->buffer[i], mode))return false;
+	return true;
 }
 
-bool containsMS(const mutableString* const str1, const mutableString* const str2) {
-	if (!str2)return true;
-	if (!str2->buffer)return str1 != NULL;
-	if (str2->buffer[0] == '\0') {
-		if (!str1 || !str1->buffer)return false;
-		return true;
+bool jcms_equalsWithCh(const JC_MutableString* const ms, const char* const obj) {
+	if (!ms)return false;
+	if (!ms->buffer && !obj)return true;
+	if (!ms->buffer || !obj)return false;
+	if (!ms->buffer[0] == '\0' && obj[0] == '\0')return true;
+	if (!ms->buffer[0] == '\0' || obj[0] == '\0')return false;
+	return strcmp(ms->buffer, obj) == 0;
+}
+
+bool jcms_equalsIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const obj, JC_SpaceMode mode) {
+	if (!ms)return false;
+	if (!ms->buffer && !obj)return true;
+	if (!ms->buffer || !obj)return false;
+	if (ms->buffer[0] == '\0' && obj[0] == '\0')return true;
+	if (ms->buffer[0] == '\0' || obj[0] == '\0')return false;
+
+	size_t len = strlen(obj);
+	if (ms->len != len)return false;
+	for (size_t i = 0; i < len; i++) {
+		if (toLowerInternal((unsigned char)ms->buffer[i], mode) !=
+			toLowerInternal((unsigned char)obj[i], mode))return false;
 	}
-
-	if (!str1 || !str1->buffer || str1->buffer[0] == '\0')return false;
-
-	return strstr(str1->buffer, str2->buffer) != NULL;
+	return true;
 }
 
-bool containsMSFrom(const mutableString* const str, const char* const ch) {
-	if (!ch)return str != NULL;
-	if (ch[0] == '\0') {
-		if (!str || !str->buffer)return false;
-		return true;
+bool jcms_containsWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj) {
+	if (!ms && !obj)return true;              // NULL 包含 NULL
+	if (!ms || !obj)return false;
+	if (!ms->buffer && !obj->buffer)return true;
+	if (!ms->buffer || !obj->buffer)return false;
+
+	return strstr(ms->buffer, obj->buffer) != NULL;
+}
+
+bool jcms_containsIgnoreCaseWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj, JC_SpaceMode mode) {
+	if (!ms && !obj)return true;
+	if (!ms || !obj)return false;
+	if (!ms->buffer && !obj->buffer)return true;
+	if (!ms->buffer || !obj->buffer)return false;
+
+	return containsIgnoreCase(ms->buffer, obj->buffer, mode);
+}
+
+bool jcms_containsWithCh(const JC_MutableString* const ms, const char* const ch) {
+	if (!ms)return false;
+	if (!ms->buffer && !ch)return true;
+	if (!ms->buffer || !ch)return false;
+
+	return strstr(ms->buffer, ch) != NULL;
+}
+
+bool jcms_containsIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const ch, JC_SpaceMode mode) {
+	if (!ms)return false;
+	if (!ms->buffer && !ch)return true;
+	if (!ms->buffer || !ch)return false;
+
+	return containsIgnoreCase(ms->buffer, ch, mode);
+}
+
+int jcms_compareWithInst(const JC_MutableString* const ms1, const JC_MutableString* const ms2, int* result) {
+	if (!result)return JC_MS__NULL_RECEIVER;
+	if (!ms1 && !ms2) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
 	}
+	if (!ms1 || !ms2)return JC_MS__NULL;
+	if (!ms1->buffer && !ms2->buffer) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
+	}
+	if (!ms1->buffer || !ms2->buffer)return JC_MS__NULL_BUFFER;
+	*result = strcmp(ms1->buffer, ms2->buffer);
+	return JC_MS__SUCCESSFUL_OP;
+}
 
-	if (!str || !str->buffer || str->buffer[0] == '\0')return false;
+int jcms_compareIgnoreCaseWithInst(const JC_MutableString* const ms1, const JC_MutableString* const ms2, int* result, JC_SpaceMode mode) {
+	if (!result)return JC_MS__NULL_RECEIVER;
+	if (!ms1 && !ms2) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
+	}
+	if (!ms1 || !ms2)return JC_MS__NULL;
+	if (!ms1->buffer && !ms2->buffer) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
+	}
+	if (!ms1->buffer || !ms2->buffer)return JC_MS__NULL_BUFFER;
+	*result = compareIgnoreCase(ms1->buffer, ms2->buffer, mode);
+	return JC_MS__SUCCESSFUL_OP;
+}
 
-	return strstr(str->buffer, ch) != NULL;
+int jcms_compareWithCh(const JC_MutableString* const ms, const char* const ch, int* result) {
+	if (!result)return JC_MS__NULL_RECEIVER;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer && !ch) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
+	}
+	if (!ms->buffer || !ch)return JC_MS__NULL_BUFFER;
+	*result = strcmp(ms->buffer, ch);
+	return JC_MS__SUCCESSFUL_OP;
+}
+
+int jcms_compareIgnoreCaseWithCh(const JC_MutableString* const ms, const char* const ch, int* result, JC_SpaceMode mode) {
+	if (!result)return JC_MS__NULL_RECEIVER;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer && !ch) {
+		*result = 0;
+		return JC_MS__SUCCESSFUL_OP;
+	}
+	if (!ms->buffer || !ch)return JC_MS__NULL_BUFFER;
+	*result = compareIgnoreCase(ms->buffer, ch, mode);
+	return JC_MS__SUCCESSFUL_OP;
 }
 
 
-char* MSToArray(const mutableString* const str) {
-	if (!str || !str->buffer)return NULL;
-	if (str->buffer[0] == '\0') {
-		char* temp = (char*)calloc(1, sizeof(char));
+// enable
+char* jcms_toCharArray(const JC_MutableString* const ms) {
+	if (!ms || !ms->buffer)return NULL;
+	if (ms->buffer[0] == '\0') {
+		char* temp = (char*)malloc(1, sizeof(char));
 		if (!temp)return NULL;
 		temp[0] = '\0';
 		return temp;
 	}
 
-	size_t len = getMSLength(str) + 1;
+	size_t len = ms->len + 1;
 	char* content = (char*)malloc(len);
-	return content ? memcpy(content, str->buffer, len) : NULL;
+	return content ? memcpy(content, ms->buffer, len) : NULL;
 }
 
-int MSToInt(const mutableString* const str, int* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return MS_EMPTY;
-	if (getMSStatus(str))return MS_WRONGSTATUS;
-	if (!result)return MS_NULLINT;
+int jcms_toInt(const JC_MutableString* const ms, int* result, JC_SpaceMode mode) {
+	if (!ms || !ms->buffer || ms->buffer[0] == '\0') return JC_MS__EMPTY;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!result) return JC_MS__NULL_INT;
 
-	const char* p = str->buffer;
-	size_t len = strlen(str->buffer);
-
-	size_t start = 0;
-	while (start < len && isspace((unsigned char)p[start]))start++;
-
-	size_t end = len;
-	while (end > start && isspace((unsigned char)p[end - 1]))end--;
-
-	if (start == end) {
-		return MS_BLANK;
+	long long v;
+	int s = parseToLL(ms->buffer, ms->len, &v, mode);
+	if (s != JC_MS__SUCCESSFUL_OP) {
+		if (s == JC_MS__BLANK)          return JC_MS__BLANK;
+		if (s == JC_MS__NOT_LONGLONG)   return JC_MS__NOT_INT;
+		return JC_MS__OVERFLOW_INT;
 	}
-
-	bool isNegative = false;
-	int tempNum = 0;
-	int numCount = 0;
-	size_t i = start;
-
-	if (p[i] == '-' || p[i] == '+') {
-		if (p[i] == '-')isNegative = true;
-		i++;
-	}
-
-	for (; i < end; i++) {
-		if (p[i] >= '0' && p[i] <= '9') {
-			int digit = p[i] - '0';
-
-			if (tempNum < (INT_MIN + digit) / 10) {
-				return MS_OVERFLOWINT;
-			}
-
-			tempNum = 10 * tempNum - digit;
-			numCount++;
-		}
-		else {
-			return MS_NOTINT;
-		}
-	}
-
-	if (numCount) {
-		if (isNegative)*result = tempNum;
-		else *result = -tempNum;
-		return MS_SUCCEEDTOINT;
-	}
-	else {
-		return MS_NOTINT;
-	}
+	if (v < INT_MIN || v > INT_MAX) return JC_MS__OVERFLOW_INT;
+	*result = (int)v;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int MSToLong(const mutableString* const str, long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return MS_EMPTY;
-	if (getMSStatus(str))return MS_WRONGSTATUS;
-	if (!result)return MS_NULLLONG;
+int jcms_toLong(const JC_MutableString* const ms, long* result, JC_SpaceMode mode) {
+	if (!ms || !ms->buffer || ms->buffer[0] == '\0') return JC_MS__EMPTY;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!result) return JC_MS__NULL_LONG;
 
-	const char* p = str->buffer;
-	size_t len = strlen(str->buffer);
-
-	size_t start = 0;
-	while (start < len && isspace((unsigned char)p[start]))start++;
-
-	size_t end = len;
-	while (end > start && isspace((unsigned char)p[end - 1]))end--;
-
-	if (start == end) {
-		return MS_BLANK;
+	long long v;
+	int s = parseToLL(ms->buffer, ms->len, &v, mode);
+	if (s != JC_MS__SUCCESSFUL_OP) {
+		if (s == JC_MS__BLANK)          return JC_MS__BLANK;
+		if (s == JC_MS__NOT_LONGLONG)   return JC_MS__NOT_LONG;
+		return JC_MS__OVERFLOW_LONG;
 	}
-
-	bool isNegative = false;
-	long tempNum = 0;
-	int numCount = 0;
-	size_t i = start;
-
-	if (p[i] == '-' || p[i] == '+') {
-		if (p[i] == '-')isNegative = true;
-		i++;
-	}
-
-	for (; i < end; i++) {
-		if (p[i] >= '0' && p[i] <= '9') {
-			long digit = p[i] - '0';
-
-			if (tempNum < (LONG_MIN + digit) / 10) {
-				return MS_OVERFLOWLONG;
-			}
-
-			tempNum = 10 * tempNum - digit;
-			numCount++;
-		}
-		else {
-			return MS_NOTLONG;
-		}
-	}
-
-	if (numCount) {
-		if (isNegative)*result = tempNum;
-		else *result = -tempNum;
-		return MS_SUCCEEDTOLONG;
-	}
-	else {
-		return MS_NOTLONG;
-	}
+	if (v < LONG_MIN || v > LONG_MAX) return JC_MS__OVERFLOW_LONG;
+	*result = (long)v;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int MSToLongLong(const mutableString* const str, long long* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return MS_EMPTY;
-	if (getMSStatus(str))return MS_WRONGSTATUS;
-	if (!result)return MS_NULLLONGLONG;
+int jcms_toLongLong(const JC_MutableString* const ms, long long* result, JC_SpaceMode mode) {
+	if (!ms || !ms->buffer || ms->buffer[0] == '\0') return JC_MS__EMPTY;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!result) return JC_MS__NULL_LONGLONG;
 
-	const char* p = str->buffer;
-	size_t len = strlen(str->buffer);
-
-	size_t start = 0;
-	while (start < len && isspace((unsigned char)p[start]))start++;
-
-	size_t end = len;
-	while (end > start && isspace((unsigned char)p[end - 1]))end--;
-
-	if (start == end) {
-		return MS_BLANK;
-	}
-
-	bool isNegative = false;
-	long long tempNum = 0;
-	int numCount = 0;
-	size_t i = start;
-
-	if (p[i] == '-' || p[i] == '+') {
-		if (p[i] == '-')isNegative = true;
-		i++;
-	}
-
-	for (; i < end; i++) {
-		if (p[i] >= '0' && p[i] <= '9') {
-			long long digit = p[i] - '0';
-
-			if (tempNum < (LLONG_MIN + digit) / 10) {
-				return MS_OVERFLOWLONGLONG;
-			}
-
-			tempNum = 10 * tempNum - digit;
-			numCount++;
-		}
-		else {
-			return MS_NOTLONGLONG;
-		}
-	}
-
-	if (numCount) {
-		if (isNegative)*result = tempNum;
-		else *result = -tempNum;
-		return MS_SUCCEEDTOLONGLONG;
-	}
-	else {
-		return MS_NOTLONGLONG;
-	}
+	int s = parseToLL(ms->buffer, ms->len, result, mode);
+	if (s == JC_MS__SUCCESSFUL_OP)      return JC_MS__SUCCESSFUL_OP;
+	if (s == JC_MS__BLANK)              return JC_MS__BLANK;
+	if (s == JC_MS__NOT_LONGLONG)       return JC_MS__NOT_LONGLONG;
+	return JC_MS__OVERFLOW_LONGLONG;
 }
 
-int MSToFloat(const mutableString* const str, float* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return MS_EMPTY;
-	if (getMSStatus(str))return MS_WRONGSTATUS;
-	if (!result)return MS_NULLFLOAT;
+int jcms_toFloat(const JC_MutableString* const ms, float* result, JC_SpaceMode mode) {
+	if (!ms || !ms->buffer || ms->buffer[0] == '\0') return JC_MS__EMPTY;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!result) return JC_MS__NULL_FLOAT;
 
-	const char* p = str->buffer;
-	size_t len = strlen(str->buffer);
-
-	size_t start = 0;
-	while (start < len && isspace((unsigned char)p[start]))start++;
-
-	size_t end = len;
-	while (end > start && isspace((unsigned char)p[end - 1]))end--;
-
-	if (start == end) {
-		return MS_BLANK;
+	double v;
+	int s = parseToDouble(ms->buffer, ms->len, &v, mode);
+	if (s != JC_MS__SUCCESSFUL_OP) {
+		if (s == JC_MS__BLANK)          return JC_MS__BLANK;
+		if (s == JC_MS__NOT_DOUBLE)     return JC_MS__NOT_FLOAT;
+		return JC_MS__OVERFLOW_FLOAT;
 	}
-
-	size_t i = start;
-	bool seenDigit = false;
-	bool seenDot = false;
-
-	if (p[i] == '-' || p[i] == '+') i++;
-
-	if (i < end && p[i] == '.') {
-		return MS_NOTFLOAT;   // 不允许 ".5" 这种没有整数部分的格式
-	}
-
-	for (; i < end; i++) {
-		if (p[i] >= '0' && p[i] <= '9') {
-			seenDigit = true;
-		}
-		else if (p[i] == '.' && !seenDot) {
-			seenDot = true;
-		}
-		else {
-			return MS_NOTFLOAT;
-		}
-	}
-
-	if (!seenDigit) return MS_NOTFLOAT;
-
-	// 调用标准库转换，从 p + start 开始
-	char* endptr = NULL;
-	errno = 0;
-	float value = strtof(p + start, &endptr);
-
-	// 确认解析到有效片段末尾
-	if (endptr != p + end) {
-		return MS_NOTFLOAT;
-	}
-
-	if (errno == ERANGE) {
-		return MS_OVERFLOWFLOAT;
-	}
-
-	*result = value;
-	return MS_SUCCEEDTOFLOAT;
+	if (v > FLT_MAX || v < -FLT_MAX) return JC_MS__OVERFLOW_FLOAT;
+	*result = (float)v;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int MSToDouble(const mutableString* const str, double* result) {
-	if (!str || !str->buffer || str->buffer[0] == '\0')return MS_EMPTY;
-	if (getMSStatus(str))return MS_WRONGSTATUS;
-	if (!result)return MS_NULLDOUBLE;
+int jcms_toDouble(const JC_MutableString* const ms, double* result, JC_SpaceMode mode) {
+	if (!ms || !ms->buffer || ms->buffer[0] == '\0') return JC_MS__EMPTY;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!result) return JC_MS__NULL_DOUBLE;
 
-	const char* p = str->buffer;
-	size_t len = strlen(str->buffer);
-
-	size_t start = 0;
-	while (start < len && isspace((unsigned char)p[start]))start++;
-
-	size_t end = len;
-	while (end > start && isspace((unsigned char)p[end - 1]))end--;
-
-	if (start == end) {
-		return MS_BLANK;
-	}
-
-	size_t i = start;
-	bool seenDigit = false;
-	bool seenDot = false;
-
-	if (p[i] == '-' || p[i] == '+') i++;
-
-	if (i < end && p[i] == '.') {
-		return MS_NOTDOUBLE;   // 不允许 ".5" 这种没有整数部分的格式
-	}
-
-	for (; i < end; i++) {
-		if (p[i] >= '0' && p[i] <= '9') {
-			seenDigit = true;
-		}
-		else if (p[i] == '.' && !seenDot) {
-			seenDot = true;
-		}
-		else {
-			return MS_NOTDOUBLE;
-		}
-	}
-
-	if (!seenDigit) return MS_NOTDOUBLE;
-
-	// 调用标准库转换，从 p + start 开始
-	char* endptr = NULL;
-	errno = 0;
-	double value = strtod(p + start, &endptr);
-
-	// 确认解析到有效片段末尾
-	if (endptr != p + end) {
-		return MS_NOTDOUBLE;
-	}
-
-	if (errno == ERANGE) {
-		return MS_OVERFLOWDOUBLE;
-	}
-
-	*result = value;
-	return MS_SUCCEEDTODOUBLE;
+	double v;
+	int s = parseToDouble(ms->buffer, ms->len, &v, mode);
+	if (s == JC_MS__SUCCESSFUL_OP) { *result = v; return JC_MS__SUCCESSFUL_OP; }
+	if (s == JC_MS__BLANK)              return JC_MS__BLANK;
+	if (s == JC_MS__NOT_DOUBLE)         return JC_MS__NOT_DOUBLE;
+	return JC_MS__OVERFLOW_DOUBLE;
 }
 
-int MSToLowerCase(mutableString* str) {
-	if (!str)return MS_NULL;
-	if (!str->buffer)return MS_NULLBUFFER;
+int jcms_toLowerCase(JC_MutableString* ms, JC_SpaceMode mode) {
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
 
-	for (size_t i = 0; i < str->len; i++) {
-		str->buffer[i] = (char)tolower((unsigned char)str->buffer[i]);
+	for (size_t i = 0; i < ms->len; i++) {
+		ms->buffer[i] = (char)toLowerInternal((unsigned char)ms->buffer[i], mode);
 	}
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int MSToUpperCase(mutableString* str) {
-	if (!str)return MS_NULL;
-	if (!str->buffer)return MS_NULLBUFFER;
+int jcms_toUpperCase(JC_MutableString* ms, JC_SpaceMode mode) {
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
 
-	for (size_t i = 0; i < str->len; i++) {
-		str->buffer[i] = (char)toupper((unsigned char)str->buffer[i]);
+	for (size_t i = 0; i < ms->len; i++) {
+		ms->buffer[i] = (char)toUpperInternal((unsigned char)ms->buffer[i], mode);
 	}
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-string jcms_toString(const MutableString* const ms) {
+jc_String jcms_toString(const JC_MutableString* const ms) {
 	if (!ms)return jcstr_newFrom(NULL);
 	return jcstr_newFrom(ms->buffer);
 }
