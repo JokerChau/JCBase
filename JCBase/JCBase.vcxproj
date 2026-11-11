@@ -26,23 +26,30 @@
     <ClInclude Include="JC_HashMap.h" />
     <ClInclude Include="JC_LinkedList.h" />
     <ClInclude Include="JC_MutableString.h" />
-    <ClInclude Include="JC_Scanner.h" />
+    <ClInclude Include="JC_STDIO.h" />
     <ClInclude Include="JC_String.h" />
     <ClInclude Include="LinkedListSrc.h" />
-    <ClInclude Include="MutableStringSrc.h" />
+    <ClInclude Include="JC_MutableStringSrc.h" />
     <ClInclude Include="RegistryCore.h" />
-    <ClInclude Include="StringSrc.h" />
-    <ClInclude Include="structures.h" />
+    <ClInclude Include="JC_StringSrc.h" />
+    <ClInclude Include="JC_StringStructures.h" />
     <ClInclude Include="wheel_ex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="JC_ArrayList.c" />
     <ClCompile Include="HashMap.c" />
     <ClCompile Include="LinkedList.c" />
-    <ClCompile Include="MutableString.c" />
+    <ClCompile Include="JC_MutableString.c" />
     <ClCompile Include="RegistryCore.c" />
-    <ClCompile Include="Scanner.c" />
-    <ClCompile Include="String.c" />
+    <ClCompile Include="JC_STDIO.c" />
+    <ClCompile Include="JC_String.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ArrayList.md" />
+    <None Include="ArrayList_EN.md" />
+    <None Include="String.md" />
+    <None Include="StringSemantics.md" />
+    <None Include="String_EN.md" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

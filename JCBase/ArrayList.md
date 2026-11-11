@@ -1,7 +1,7 @@
 # ArrayList
 ## 其他语言md
 ### English
-[ArrayList.md English version](ArrayList.md)
+[ArrayList.md English version](ArrayList_EN.md)
 ## 接口介绍
 > jc_ArrayList jcal_inner_new(size_t sizeType)
 ```text

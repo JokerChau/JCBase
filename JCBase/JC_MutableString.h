@@ -1,82 +1,84 @@
 #pragma once
 
 #include "wheel_ex.h"
-#include "MutableStringSrc.h"
+#include "JC_MutableStringSrc.h"
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef struct MutableString MutableString;
-typedef MutableString* mutableString;
-typedef struct String String;
-typedef String* string;
+typedef struct JC_MutableString JC_MutableString;
+typedef JC_MutableString* jc_MutableString;
+typedef struct JC_String JC_String;
+typedef JC_String* jc_String;
 
-wheels mutableString jcms_new(void);
+wheels jc_MutableString jcms_new(void);
 
-wheels mutableString jcms_newFrom(const char* const content);
+wheels jc_MutableString jcms_newFrom(const char* const content);
 
-wheels void jcms_delete(mutableString ms);
+wheels void jcms_delete(jc_MutableString ms);
 
-wheels int jcms_getStatus(const MutableString* const ms);
+wheels int jcms_getStatus(const JC_MutableString* const ms);
 
-wheels size_t jcms_getLength(const MutableString* const ms);
+wheels size_t jcms_getLength(const JC_MutableString* const ms);
 
-wheels const char* jcms_viewBuffer(const MutableString* const ms);
+wheels const char* jcms_viewBuffer(const JC_MutableString* const ms);
 
-wheels int jcms_setContent(const mutableString ms, const char* const content);
+wheels int jcms_setContent(const jc_MutableString ms, const char* const content);
 
-wheels int jcms_changeAt(const mutableString ms, size_t index, char ch);
+wheels int jcms_changeAt(const jc_MutableString ms, size_t index, char ch);
 
 wheels const char* jcms_statusToCharArray(const int status);
 
-wheels int jcms_appendWithInst(const mutableString ms, const MutableString* const src);
+wheels int jcms_appendWithInst(const jc_MutableString ms, const JC_MutableString* const src);
 
-wheels int jcms_appendWithCh(const mutableString ms, const char* const ch);
+wheels int jcms_appendWithCh(const jc_MutableString ms, const char* const ch);
 
-wheels int jcms_reverse(mutableString ms);
+wheels int jcms_reverse(jc_MutableString ms);
 
-wheels int jcms_split(const MutableString* const ms, char delimiter,
-	mutableString** outArray, size_t* count,
+wheels int jcms_split(const JC_MutableString* const ms, char delimiter,
+	jc_MutableString** outArray, size_t* count,
 	bool removeEmptyEntries);
 
-wheels int jcms_trim(const mutableString ms);
+wheels int jcms_trim(const jc_MutableString ms);
 
-wheels int jcms_trimFront(const mutableString ms);
+wheels int jcms_trimFront(const jc_MutableString ms);
 
-wheels int jcms_trimBack(const mutableString ms);
+wheels int jcms_trimBack(const jc_MutableString ms);
 
-wheels mutableString jcms_clone(const MutableString* const ms);
+wheels jc_MutableString jcms_clone(const JC_MutableString* const ms);
 
-wheels int jcms_charAt(const MutableString* const ms, size_t index, char* result);
+wheels int jcms_charAt(const JC_MutableString* const ms, size_t index, char* result);
 
-wheels int jcms_indexOfFront(const MutableString* const ms, char ch, size_t* result);
+wheels int jcms_indexOfFront(const JC_MutableString* const ms, char ch, size_t* result);
 
-wheels int jcms_indexOfBack(const MutableString* const ms, char ch, size_t* result);
+wheels int jcms_indexOfBack(const JC_MutableString* const ms, char ch, size_t* result);
 
-wheels int jcms_indexOfFrontWithInst(const MutableString* const ms, const MutableString* const sub, size_t* result);
+wheels int jcms_indexOfFrontWithInst(const JC_MutableString* const ms, const JC_MutableString* const sub, size_t* result);
 
-wheels int jcms_indexOfFrontWithCh(const MutableString* const ms, const char* const ch, size_t* result);
+wheels int jcms_indexOfFrontWithCh(const JC_MutableString* const ms, const char* const ch, size_t* result);
 
-wheels mutableString jcms_subInLengthFrontWithInst(const MutableString* const ms, size_t start, size_t length);
+wheels jc_MutableString jcms_subInLengthFrontWithInst(const JC_MutableString* const ms, size_t start, size_t length);
 
-wheels stringBuilder subSbInLengthBack(const StringBuilder* const str, size_t end, size_t length);
+wheels jc_MutableString jcms_subInLengthBackWithInst(const JC_MutableString* const ms, size_t end, size_t length);
 
-wheels stringBuilder subSbInRange(const StringBuilder* const str, size_t start, size_t end);
+wheels jc_MutableString jcms_subInRangeWithInst(const JC_MutableString* const ms, size_t start, size_t end);
 
-wheels mutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, size_t length);
+wheels jc_MutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, size_t length);
 
-wheels stringBuilder subSbInLengthBackFrom(const char* const ch, size_t end, size_t length);
+wheels jc_MutableString jcms_subInLengthBackWithCh(const char* const ch, size_t end, size_t length);
 
-wheels stringBuilder subSbInRangeFrom(const char* const ch, size_t start, size_t end);
+wheels jc_MutableString jcms_subInRangeWithCh(const char* const ch, size_t start, size_t end);
 
-wheels int replaceSbFirst(StringBuilder* str, const char* const target, const StringBuilder* const replacement);
+wheels int jcms_replaceFirstWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement);
 
-wheels int replaceSbFirstFrom(StringBuilder* str, const char* const target, const char* const replacement);
+wheels int jcms_replaceFirstWithCh(JC_MutableString* ms, const char* const target, const char* const replacement);
 
-wheels int replaceSbAll(StringBuilder* str, const char* const target, const StringBuilder* const replacement);
+wheels int jcms_replaceAllWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement);
 
-wheels int replaceSbAllFrom(StringBuilder* str, const char* const target, const char* const replacement);
+wheels int jcms_replaceAllWithCh(JC_MutableString* ms, const char* const target, const char* const replacement);
 
-wheels bool sbStartWith(const StringBuilder* const str, const char* const prefix);
+wheels bool jcms_startWithCh(const JC_MutableString* const ms, const char* const prefix);
+
+wheels bool jcms_startWithInst(const JC_MutableString* const ms, const JC_MutableString* const prefix);
 
 wheels bool sbEndWith(const StringBuilder* const str, const char* const suffix);
 

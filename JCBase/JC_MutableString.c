@@ -1,5 +1,5 @@
 #include "JC_MutableString.h"
-#include "structures.h"
+#include "JC_StringStructures.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,8 +11,8 @@
 #include "JC_String.h"
 
 // 直接接管各种属性
-static mutableString wrapString(char* buffer, int status, size_t len, size_t cap) {
-	mutableString str = (mutableString)malloc(sizeof(MutableString));
+static jc_MutableString wrapString(char* buffer, int status, size_t len, size_t cap) {
+	jc_MutableString str = (jc_MutableString)malloc(sizeof(JC_MutableString));
 	if (!str)return NULL;
 	str->buffer = buffer;
 	str->status = status;
@@ -21,25 +21,25 @@ static mutableString wrapString(char* buffer, int status, size_t len, size_t cap
 	return str;
 }
 
-static void setString(mutableString ms, char* buffer, int status, size_t len, size_t cap) {
+static void setString(jc_MutableString ms, char* buffer, int status, size_t len, size_t cap) {
 	ms->buffer = buffer;
 	ms->status = status;
 	ms->len = len;
 	ms->cap = cap;
 }
 
-// caller 保证 content 有效, 但是接口会使用副本而不是接管 content， len 已算出
-static mutableString pkgMS(const char* content, size_t len) {
+// 调用方 保证 content 有效, 但是接口会使用副本而不是接管 content， len 已算出
+static jc_MutableString pkgMS(const char* content, size_t len) {
 	size_t base = len > (size_t)INITIAL_MS_SIZE ? len : (size_t)INITIAL_MS_SIZE;
 	size_t cap = base + 1;                       // 与 jcms_newFrom 同口径
 
 	char* tempBuf = (char*)malloc(cap);
-	if (!tempBuf) return wrapString(NULL, MS_NULLBUFFER, 0, 0);
+	if (!tempBuf) return wrapString(NULL, JC_MS__NULL_BUFFER, 0, 0);
 
 	memcpy(tempBuf, content, len);
 	tempBuf[len] = '\0';
 
-	mutableString result = wrapString(tempBuf, MS_AVAILABLE, len, cap);
+	jc_MutableString result = wrapString(tempBuf, JC_MS__AVAILABLE, len, cap);
 	if (!result) free(tempBuf);
 	return result;
 }
@@ -49,8 +49,26 @@ static size_t ceilAlignInitSize(size_t needed) {
 	return ((needed + INITIAL_MS_SIZE - 1) / INITIAL_MS_SIZE) * INITIAL_MS_SIZE;
 }
 
-static int appendCore(mutableString ms, char** src, size_t srcLen) {
-	if (ms->len > SIZE_MAX - srcLen - 1)return MS_LENOUTOFTYPEMAX;
+// 调用方 保证实例和 content 有效，但接口不让实例接管 content，而是使用副本
+static int setContent(jc_MutableString ms, const char* const content, size_t contentLen) {
+	size_t needed = contentLen + 1;
+
+	if (ms->cap < needed) {
+		size_t newCap = ceilAlignInitSize(needed);
+		char* newBuf = (char*)realloc(ms->buffer, newCap);
+		if (!newBuf)return JC_MS__REALLOCATION_FAILED;
+
+		ms->buffer = newBuf;
+		ms->cap = newCap;
+	}
+	memmove(ms->buffer, content, needed);
+	ms->len = contentLen;
+	return JC_MS__SUCCESSFUL_OP;
+}
+
+// 拷贝src
+static int appendCore(jc_MutableString ms, char** src, size_t srcLen) {
+	if (ms->len > SIZE_MAX - srcLen - 1)return JC_MS__LENGTH_OUT_OF_BOUNDS;
 	size_t needed = ms->len + srcLen + 1;
 	// 扩容
 	if (needed > ms->cap) {
@@ -76,32 +94,192 @@ static int appendCore(mutableString ms, char** src, size_t srcLen) {
 			}
 		}
 		char* tempBuf = (char*)realloc(ms->buffer, newCap);
-		if (!tempBuf)return MS_FAILEDTOREALLOC;
+		if (!tempBuf)return JC_MS__REALLOCATION_FAILED;
 		ms->buffer = tempBuf;
 		ms->cap = newCap;
 	}
 	memmove(ms->buffer + ms->len, *src, srcLen);
 	ms->len = needed - 1;
 	ms->buffer[ms->len] = '\0';
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
+}
+
+static int replaceFirstCore(jc_MutableString ms, const char* const target, const char* const replacement) {
+	// replacement 指向 ms->buffer 内部时，后续 realloc 会让它悬空，直接拒绝
+	{
+		uintptr_t b = (uintptr_t)ms->buffer;
+		uintptr_t s = (uintptr_t)replacement;
+		if (s >= b && s <= b + ms->len) return JC_MS__INVALID_REPLACEMENT;
+	}
+
+	// 空内容 + 空 target：整体设为 replacement
+	if (!ms->len && target[0] == '\0') return setContent(ms, replacement, strlen(replacement));
+	// 空内容 + 非空 target：找不到
+	if (!ms->len) return JC_MS__NO_TARGET_MATCHED;
+	// 非空内容 + 空 target：末尾追加
+	if (target[0] == '\0') {
+		char* localReplacement = (char*)replacement;
+		return appendCore(ms, &localReplacement, strlen(replacement));
+	}
+
+	char* indexChar = strstr(ms->buffer, target);
+	if (!indexChar) return JC_MS__NO_TARGET_MATCHED;
+
+	size_t index = (size_t)(indexChar - ms->buffer);
+	size_t targetLen = strlen(target);
+	size_t replaceLen = strlen(replacement);
+	size_t strLen = ms->len;
+
+	// 等长：直接覆盖，不需要移动后缀
+	if (targetLen == replaceLen) {
+		memmove(ms->buffer + index, replacement, replaceLen);
+		return JC_MS__SUCCESSFUL_OP;
+	}
+
+	// 不等长：算新长度，按需扩容
+	size_t preLen = index;
+	size_t sufLen = strLen - preLen - targetLen;
+	size_t newLen = preLen + replaceLen + sufLen;
+	size_t needed = newLen + 1;
+
+	if (ms->cap < needed) {
+		char* newBuffer = (char*)realloc(ms->buffer, needed);
+		if (!newBuffer) return JC_MS__REALLOCATION_FAILED;
+		ms->buffer = newBuffer;
+		ms->cap = needed;
+	}
+
+	// 先移后缀（含 '\0'），再写 replacement
+	memmove(ms->buffer + index + replaceLen, ms->buffer + index + targetLen, sufLen + 1);
+	memmove(ms->buffer + index, replacement, replaceLen);
+
+	ms->len = newLen;
+	return JC_MS__SUCCESSFUL_OP;
+}
+
+static int replaceAllCore(jc_MutableString ms, const char* const target, const char* const replacement) {
+	// replacement 指向 ms->buffer 内部时，后续 realloc 会让它悬空，直接拒绝
+	{
+		uintptr_t b = (uintptr_t)ms->buffer;
+		uintptr_t s = (uintptr_t)replacement;
+		if (s >= b && s <= b + ms->len) return JC_MS__INVALID_REPLACEMENT;
+	}
+
+	// 空内容 + 空 target：整体设为 replacement
+	if (!ms->len && target[0] == '\0') return setContent(ms, replacement, strlen(replacement));
+	// 空内容 + 非空 target：找不到
+	if (!ms->len) return JC_MS__NO_TARGET_MATCHED;
+	// 非空内容 + 空 target：末尾追加
+	if (target[0] == '\0') {
+		char* localReplacement = (char*)replacement;
+		return appendCore(ms, &localReplacement, strlen(replacement));
+	}
+
+	size_t strLen = ms->len;
+	size_t targetLen = strlen(target);
+	size_t replaceLen = strlen(replacement);
+
+	// 第一遍：扫描所有匹配位置
+	size_t capacity = 16;
+	size_t* positions = (size_t*)malloc(capacity * sizeof(size_t));
+	if (!positions) return JC_MS__ALLOCATION_FAILED;
+
+	size_t count = 0;
+	size_t scan = 0;
+	while (scan + targetLen <= strLen) {
+		if (memcmp(ms->buffer + scan, target, targetLen) == 0) {
+			if (count == capacity) {
+				if (capacity > SIZE_MAX / 2 / sizeof(size_t)) { 
+					free(positions);
+					return JC_MS__REALLOCATION_FAILED;
+				}
+				capacity *= 2;
+				size_t* newPositions = (size_t*)realloc(positions, capacity * sizeof(size_t));
+				if (!newPositions) {
+					free(positions);
+					return JC_MS__REALLOCATION_FAILED;
+				}
+				positions = newPositions;
+			}
+			positions[count++] = scan;
+			scan += targetLen;
+		}
+		else {
+			scan++;
+		}
+	}
+
+	if (count == 0) {
+		free(positions);
+		return JC_MS__NO_TARGET_MATCHED;
+	}
+
+	// 计算最终长度
+	size_t newLen;
+	if (replaceLen >= targetLen) {
+		newLen = strLen + count * (replaceLen - targetLen);
+	}
+	else {
+		newLen = strLen - count * (targetLen - replaceLen);
+	}
+
+	// 需要时一次扩容到位
+	if (newLen + 1 > ms->cap) {
+		char* newBuffer = (char*)realloc(ms->buffer, newLen + 1);
+		if (!newBuffer) {
+			free(positions);
+			return JC_MS__REALLOCATION_FAILED;
+		}
+		ms->buffer = newBuffer;
+		ms->cap = newLen + 1;
+	}
+
+	// 从后往前替换
+	size_t currentLen = strLen;
+	for (size_t k = count; k > 0; k--) {
+		size_t pos = positions[k - 1];
+		size_t suffixStart = pos + targetLen;
+		size_t suffixLen = currentLen - suffixStart;
+
+		// 先移后缀，再写 replacement
+		memmove(ms->buffer + pos + replaceLen,
+			ms->buffer + suffixStart,
+			suffixLen + 1);
+		memmove(ms->buffer + pos, replacement, replaceLen);
+
+		if (replaceLen >= targetLen) {
+			currentLen += replaceLen - targetLen;
+		}
+		else {
+			currentLen -= targetLen - replaceLen;
+		}
+	}
+
+	free(positions);
+	ms->len = newLen;
+	ms->buffer[newLen] = '\0';
+	return JC_MS__SUCCESSFUL_OP;
 }
 
 // mutableString构造器
-mutableString jcms_new(void) {
+// enable
+jc_MutableString jcms_new(void) {
 	char* tempBuf = (char*)calloc(INITIAL_MS_SIZE + 1, sizeof(char));
-	if (!tempBuf)return wrapString(tempBuf, MS_NULLBUFFER, 0, 0);
-	mutableString result = wrapString(tempBuf, MS_AVAILABLE, 0, INITIAL_MS_SIZE + 1);
+	if (!tempBuf)return wrapString(tempBuf, JC_MS__NULL_BUFFER, 0, 0);
+	jc_MutableString result = wrapString(tempBuf, JC_MS__AVAILABLE, 0, INITIAL_MS_SIZE + 1);
 	if (!result)free(tempBuf);
 	return result;
 }
 
 // mutableString构造器
-mutableString jcms_newFrom(const char* const content) {
-	if (!content)return wrapString(content, MS_NULLBUFFER, 0, 0);
+// enable
+jc_MutableString jcms_newFrom(const char* const content) {
+	if (!content)return wrapString(content, JC_MS__NULL_BUFFER, 0, 0);
 	return pkgMS(content, strlen(content));
 }
 
-void jcms_delete(mutableString ms) {
+// enable
+void jcms_delete(jc_MutableString ms) {
 	if (!ms)return;
 	if (ms->buffer) {
 		free(ms->buffer);
@@ -109,58 +287,50 @@ void jcms_delete(mutableString ms) {
 	free(ms);
 }
 
-int jcms_getStatus(const MutableString* const ms) {
-	if (!ms)return MS_NULL;
+// enable
+int jcms_getStatus(const JC_MutableString* const ms) {
+	if (!ms)return JC_MS__NULL;
 	return ms->status;
 }
 
-size_t jcms_getLength(const MutableString* const ms) {
+// enable
+size_t jcms_getLength(const JC_MutableString* const ms) {
 	if (!ms)return 0;
 	return ms->len;
 }
 
-const char* jcms_viewBuffer(const MutableString* const ms) {
+// enable
+const char* jcms_viewBuffer(const JC_MutableString* const ms) {
 	if (!ms)return NULL;
 	return ms->buffer;
 }
 
-int jcms_setContent(const mutableString ms, const char* const content) {
-	if (!ms)return MS_NULL;
-	if (ms->status != MS_AVAILABLE)return MS_WRONGSTATUS;
+// enable
+int jcms_setContent(const jc_MutableString ms, const char* const content) {
+	if (!ms)return JC_MS__NULL;
+	if (ms->status != JC_MS__AVAILABLE)return ms->status;
 
 	// 内容为 NULL → 清空，不释放 buffer
 	if (!content) {
 		ms->buffer[0] = '\0';
 		ms->len = 0;
-		return MS_SUCCESSFULOP;
+		return JC_MS__SUCCESSFUL_OP;
 	}
 
-	size_t len = strlen(content);
-	size_t needed = len + 1;
-
-	if (ms->cap < needed) {
-		size_t newCap = ceilAlignInitSize(needed);
-		char* newBuf = (char*)realloc(ms->buffer, newCap);
-		if (!newBuf)return MS_FAILEDTOREALLOC;
-
-		ms->buffer = newBuf;
-		ms->cap = newCap;
-	}
-	memmove(ms->buffer, content, needed);
-	ms->len = len;
-	return MS_SUCCESSFULOP;
+	return setContent(ms, content, strlen(content));
 }
 
-int jcms_changeAt(const mutableString ms, size_t index, char ch) {
-	if (!ms)return MS_NULL;
-	if (!ms->buffer)return MS_NULLBUFFER;
-	if (ms->status != MS_AVAILABLE) return MS_WRONGSTATUS;
-	if (index >= ms->len)return MS_IDXOUTBOUNDS;
-	if (ch == '\0')return MS_INVALIDCHFORCHANGE;
+// enable
+int jcms_changeAt(const jc_MutableString ms, size_t index, char ch) {
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (index >= ms->len)return JC_MS__INDEX_OUT_OF_BOUNDS;
+	if (ch == '\0')return JC_MS__INVALID_CHARACTER_FOR_CHANGE;
 
 	ms->buffer[index] = ch;
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
 const char* jcms_statusToCharArray(const int status) {
@@ -324,35 +494,38 @@ const char* jcms_statusToCharArray(const int status) {
 	}
 }
 
-int jcms_appendWithInst(const mutableString ms, const MutableString* const src) {
+// enable
+int jcms_appendWithInst(const jc_MutableString ms, const JC_MutableString* const src) {
 	int tempStatus = jcms_getStatus(ms);
-	if (tempStatus != MS_AVAILABLE)return tempStatus;
+	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
 	tempStatus = jcms_getStatus(src);
-	if (tempStatus != MS_AVAILABLE)return tempStatus;
-	if (!src->len)return MS_SUCCESSFULOP;
+	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
+	if (!src->len)return JC_MS__SUCCESSFUL_OP;
 	if (!ms->len)return jcms_setContent(ms, src->buffer);
 	// 如果都不为空
 
 	return appendCore(ms, &src->buffer, src->len);
 }
 
-int jcms_appendWithCh(const mutableString ms, const char* const ch) {
+// enable
+int jcms_appendWithCh(const jc_MutableString ms, const char* const ch) {
 	int tempStatus = jcms_getStatus(ms);
-	if (tempStatus != MS_AVAILABLE)return tempStatus;
-	if (!ch)return MS_NULLCHAR;
+	if (tempStatus != JC_MS__AVAILABLE)return tempStatus;
+	if (!ch)return JC_MS__NULL_CHAR;
 	uintptr_t bufStart = (uintptr_t)ms->buffer;
 	uintptr_t bufEnd = bufStart + ms->len;   // buffer + len 是有效地址，不溢出
 	uintptr_t srcPtr = (uintptr_t)ch;
-	if (srcPtr >= bufStart && srcPtr <= bufEnd) return MS_INVALIDSRC;
-	if (ch[0] == '\0')return MS_SUCCESSFULOP;
+	if (srcPtr >= bufStart && srcPtr <= bufEnd) return JC_MS__INVALID_SOURCE;
+	if (ch[0] == '\0')return JC_MS__SUCCESSFUL_OP;
 	if (!ms->len)return jcms_setContent(ms, ch);
 	char* localCh = (char*)ch;
 
 	return appendCore(ms, &localCh, strlen(ch));
 }
 
-int jcms_reverse(mutableString ms) {
-	if (!ms || !ms->buffer || ms->buffer[0]=='\0')return MS_SUCCESSFULOP;
+// enable
+int jcms_reverse(jc_MutableString ms) {
+	if (!ms || !ms->buffer || ms->buffer[0]=='\0')return JC_MS__SUCCESSFUL_OP;
 
 	for (size_t i = 0; i < ms->len / 2; i++) {
 		char c = ms->buffer[i];
@@ -360,20 +533,21 @@ int jcms_reverse(mutableString ms) {
 		ms->buffer[ms->len - 1 - i] = c;
 	}
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_split(const MutableString* const ms, char delimiter,
-	mutableString** outArray, size_t* count,
+// enable
+int jcms_split(const JC_MutableString* const ms, char delimiter,
+	jc_MutableString** outArray, size_t* count,
 	bool removeEmptyEntries) {
-	if (!outArray) return MS_NULLARRAY;
-	if (!count)    return MS_NULLCOUNT;
+	if (!outArray) return JC_MS__NULL_ARRAY;
+	if (!count)    return JC_MS__NULL_COUNT;
 
 	*outArray = NULL;
 	*count = 0;
 
-	if (!ms)         return MS_NULL;
-	if (!ms->buffer) return MS_NULLBUFFER;
+	if (!ms)         return JC_MS__NULL;
+	if (!ms->buffer) return JC_MS__NULL_BUFFER;
 
 	const char* buf = ms->buffer;
 	const char* end = buf + ms->len;
@@ -392,10 +566,10 @@ int jcms_split(const MutableString* const ms, char delimiter,
 		p = found + 1;
 	}
 
-	if (wholeCount == 0) return MS_SUCCESSFULOP;
+	if (wholeCount == 0) return JC_MS__SUCCESSFUL_OP;
 
-	mutableString* arr = (mutableString*)malloc(sizeof(mutableString) * wholeCount);
-	if (!arr) return MS_FAILEDTOALLOC;
+	jc_MutableString* arr = (jc_MutableString*)malloc(sizeof(jc_MutableString) * wholeCount);
+	if (!arr) return JC_MS__ALLOCATION_FAILED;
 
 	/* 第二遍：填充，每段走 pkgMS */
 	bool   hasNull = false;
@@ -408,8 +582,8 @@ int jcms_split(const MutableString* const ms, char delimiter,
 		size_t segLen = (size_t)(segEnd - p);
 
 		if (segLen > 0 || !removeEmptyEntries) {
-			mutableString item = pkgMS(p, segLen);
-			if (!item || item->status != MS_AVAILABLE) hasNull = true;
+			jc_MutableString item = pkgMS(p, segLen);
+			if (!item || item->status != JC_MS__AVAILABLE) hasNull = true;
 			arr[i++] = item;
 		}
 
@@ -419,11 +593,12 @@ int jcms_split(const MutableString* const ms, char delimiter,
 
 	*outArray = arr;
 	*count = wholeCount;
-	return hasNull ? MS_PARTIALSPLIT : MS_SUCCESSFULOP;
+	return hasNull ? JC_MS__PARTIAL_SPLIT : JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_trim(const mutableString ms) {
-	if (!ms || !ms->buffer || !ms->len)return MS_SUCCESSFULOP;
+// enable
+int jcms_trim(const jc_MutableString ms) {
+	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t len = ms->len;
 	size_t start = 0;
@@ -434,7 +609,7 @@ int jcms_trim(const mutableString ms) {
 	if (start == len) {
 		ms->buffer[0] = '\0';
 		ms->len = 0;
-		return MS_SUCCESSFULOP;
+		return JC_MS__SUCCESSFUL_OP;
 	}
 
 	size_t end = len - 1;
@@ -443,7 +618,7 @@ int jcms_trim(const mutableString ms) {
 	}
 
 	size_t newLen = end - start + 1;
-	if (start == 0 && newLen == len)return MS_SUCCESSFULOP;
+	if (start == 0 && newLen == len)return JC_MS__SUCCESSFUL_OP;
 
 	if (start > 0) {
 		memmove(ms->buffer, ms->buffer + start, newLen);
@@ -451,11 +626,12 @@ int jcms_trim(const mutableString ms) {
 	ms->buffer[newLen] = '\0';
 	ms->len = newLen;
 	
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_trimFront(const mutableString ms) {
-	if (!ms || !ms->buffer || !ms->len)return MS_SUCCESSFULOP;
+// enable
+int jcms_trimFront(const jc_MutableString ms) {
+	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t len = ms->len;
 	size_t start = 0;
@@ -463,11 +639,11 @@ int jcms_trimFront(const mutableString ms) {
 		start++;
 	}
 
-	if (start == 0)return MS_SUCCESSFULOP;
+	if (start == 0)return JC_MS__SUCCESSFUL_OP;
 	if (start == len) {
 		ms->buffer[0] = '\0';
 		ms->len = 0;
-		return MS_SUCCESSFULOP;
+		return JC_MS__SUCCESSFUL_OP;
 	}
 
 	size_t newLen = len - start;
@@ -477,94 +653,102 @@ int jcms_trimFront(const mutableString ms) {
 	ms->buffer[newLen] = '\0';
 	ms->len = newLen;
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_trimBack(const mutableString ms) {
-	if (!ms || !ms->buffer || !ms->len)return MS_SUCCESSFULOP;
+// enable
+int jcms_trimBack(const jc_MutableString ms) {
+	if (!ms || !ms->buffer || !ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	size_t newLen = ms->len;
 	while (newLen > 0 && isspace((unsigned char)ms->buffer[newLen - 1]))newLen--;
 
-	if (newLen == ms->len)return MS_SUCCESSFULOP;
+	if (newLen == ms->len)return JC_MS__SUCCESSFUL_OP;
 
 	ms->buffer[newLen] = '\0';
 	ms->len = newLen;
 
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-mutableString jcms_clone(const MutableString* const ms) {
+// enable
+jc_MutableString jcms_clone(const JC_MutableString* const ms) {
 	if (!ms)return NULL;
 	return jcms_newFrom(ms->buffer);
 }
 
-int jcms_charAt(const MutableString* const ms, size_t index, char* result) {
-	if (!result)return MS_NULLCHAR;
-	if (!ms)return MS_NULL;
-	if (!ms->buffer)return MS_NULLBUFFER;
-	if (index >= ms->len)return MS_IDXOUTBOUNDS;
+// enable
+int jcms_charAt(const JC_MutableString* const ms, size_t index, char* result) {
+	if (!result)return JC_MS__NULL_CHAR;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
+	if (index >= ms->len)return JC_MS__INDEX_OUT_OF_BOUNDS;
 
 	*result = ms->buffer[index];
 
-	return MS_SUCCESSFULIDX;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_indexOfFront(const MutableString* const ms, char ch, size_t* result) {
-	if (!result)return MS_NULLINT;
-	if (!ms)return MS_NULL;
-	if (!ms->buffer)return MS_NULLBUFFER;
+// enable
+int jcms_indexOfFront(const JC_MutableString* const ms, char ch, size_t* result) {
+	if (!result)return JC_MS__NULL_RESULT;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
 
 	const char* found = strchr(ms->buffer, ch);
 	if (found) {
 		*result = (size_t)(found - ms->buffer);
-		return MS_SUCCEEDTOFINDCH;
+		return JC_MS__SUCCESSFUL_OP;
 	}
-	return MS_WITHOUTCH;
+	return JC_MS__WITHOUT_CHAR;
 }
 
-int jcms_indexOfBack(const MutableString* const ms, char ch, size_t* result) {
-	if (!result)return MS_NULLINT;
-	if (!ms)return MS_NULL;
-	if (!ms->buffer)return MS_NULLBUFFER;
+// enable
+int jcms_indexOfBack(const JC_MutableString* const ms, char ch, size_t* result) {
+	if (!result)return JC_MS__NULL_RESULT;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer)return JC_MS__NULL_BUFFER;
 	for (ptrdiff_t i = (ptrdiff_t)ms->len - 1; i >= 0; --i) {
 		if (ms->buffer[i] == ch) {
 			*result = (size_t)i;
-			return MS_SUCCEEDTOFINDCH;
+			return JC_MS__SUCCESSFUL_OP;
 		}
 	}
-	return MS_WITHOUTCH;
+	return JC_MS__WITHOUT_CHAR;
 }
 
-int jcms_indexOfFrontWithInst(const MutableString* const ms, const MutableString* const sub, size_t* result) {
-	if (!result)return MS_NULLRECEIVER;
-	if (!ms || !sub)return MS_NULL;
-	if (!ms->buffer || !sub->buffer)return MS_NULLBUFFER;
+// enable
+int jcms_indexOfFrontWithInst(const JC_MutableString* const ms, const JC_MutableString* const sub, size_t* result) {
+	if (!result)return JC_MS__NULL_RESULT;
+	if (!ms || !sub)return JC_MS__NULL;
+	if (!ms->buffer || !sub->buffer)return JC_MS__NULL_BUFFER;
 	if (sub->buffer[0] == '\0') {
 		*result = ms->len;
-		return MS_SUCCESSFULOP;
+		return JC_MS__SUCCESSFUL_OP;
 	}
 	const char* found = strstr(ms->buffer, sub->buffer);
-	if (!found)return MS_WITHOUTCH;
+	if (!found)return JC_MS__WITHOUT_CHAR;
 	*result = (size_t)(found - ms->buffer);
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-int jcms_indexOfFrontWithCh(const MutableString* const ms, const char* const ch, size_t* result) {
-	if (!result)return MS_NULLRECEIVER;
-	if (!ms)return MS_NULL;
-	if (!ms->buffer || !ch)return MS_NULLBUFFER;
+// enable
+int jcms_indexOfFrontWithCh(const JC_MutableString* const ms, const char* const ch, size_t* result) {
+	if (!result)return JC_MS__NULL_RESULT;
+	if (!ms)return JC_MS__NULL;
+	if (!ms->buffer || !ch)return JC_MS__NULL_BUFFER;
 	if (ch[0] == '\0') {
 		*result = ms->len;
-		return MS_SUCCESSFULOP;
+		return JC_MS__SUCCESSFUL_OP;
 	}
 	const char* found = strstr(ms->buffer, ch);
-	if (!found)return MS_WITHOUTCH;
+	if (!found)return JC_MS__WITHOUT_CHAR;
 	*result = (size_t)(found - ms->buffer);
-	return MS_SUCCESSFULOP;
+	return JC_MS__SUCCESSFUL_OP;
 }
 
-mutableString jcms_subInLengthFrontWithInst(const MutableString* const ms, size_t start, size_t length) {
+// enable
+jc_MutableString jcms_subInLengthFrontWithInst(const JC_MutableString* const ms, size_t start, size_t length) {
 	if (!ms)return NULL;
 	if (!ms->buffer)return jcms_newFrom(NULL);
 	if (!ms->len || !length)return jcms_newFrom("");
@@ -572,8 +756,8 @@ mutableString jcms_subInLengthFrontWithInst(const MutableString* const ms, size_
 	size_t len = ms->len;
 	// 起始点超限
 	if (start >= len) {
-		mutableString temp = jcms_newFrom("");
-		if (temp && temp->status == MS_AVAILABLE)temp->status = MS_INVALIDSTART;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_START;
 		return temp;
 	}
 
@@ -583,81 +767,56 @@ mutableString jcms_subInLengthFrontWithInst(const MutableString* const ms, size_
 	return pkgMS(ms->buffer + start, length);
 }
 
-mutableString subMSInLengthBack(const mutableString* const str, size_t end, size_t length) {
-	if (!str)return NULL;
-	if (!str->buffer)return newMSFrom(NULL);
-	if (str->buffer[0] == '\0' || !length)return newMSFrom("");
+// enable
+jc_MutableString jcms_subInLengthBackWithInst(const JC_MutableString* const ms, size_t end, size_t length) {
+	if (!ms)return NULL;
+	if (!ms->buffer)return jcms_newFrom(NULL);
+	if (ms->buffer[0] == '\0' || !length)return jcms_newFrom("");
 
-	size_t len = getMSLength(str);
+	size_t len = ms->len;
 	if (end >= len) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_INVALIDEND;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_END;
 		return temp;
 	}
 
 	if ((ptrdiff_t)end + 1 - (ptrdiff_t)length < 0)length = end + 1;
 
-	mutableString temp = (mutableString)malloc(sizeof(mutableString));
-	if (!temp)return NULL;
-	temp->buffer = (char*)malloc(length + 1);
-	if (!temp->buffer) {
-		temp->status = MS_NULLBUFFER;
-		temp->len = 0;
-		temp->cap = 0;
-		return temp;
-	}
-	memcpy(temp->buffer, str->buffer + (end - length + 1), length);
-	temp->buffer[length] = '\0';
-	temp->status = MS_AVAILABLE;
-	temp->len = length;
-	temp->cap = length + 1;
-	return temp;
+	return pkgMS(ms->buffer + (end - length + 1), length);
 }
 
-mutableString subMSInRange(const mutableString* const str, size_t start, size_t end) {
-	if (!str)return NULL;
-	if (!str->buffer)return newMSFrom(NULL);
-	if (str->buffer[0] == '\0' || start == end)return newMSFrom("");
+// enable
+jc_MutableString jcms_subInRangeWithInst(const JC_MutableString* const ms, size_t start, size_t end) {
+	if (!ms)return NULL;
+	if (!ms->buffer)return jcms_newFrom(NULL);
+	if (ms->buffer[0] == '\0' || start == end)return jcms_newFrom("");
 
 	if (start > end) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_INVALIDIDX;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_INDEX;
 		return temp;
 	}
 
-	size_t len = getMSLength(str);
+	size_t len = ms->len;
 	if (start >= len || end > len) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_IDXOUTBOUNDS;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INDEX_OUT_OF_BOUNDS;
 		return temp;
 	}
 
 	size_t length = end - start;
-	mutableString temp = (mutableString)malloc(sizeof(mutableString));
-	if (!temp)return NULL;
-	temp->buffer = (char*)malloc(length + 1);
-	if (!temp->buffer) {
-		temp->status = MS_NULLBUFFER;
-		temp->len = 0;
-		temp->cap = 0;
-		return temp;
-	}
-	memcpy(temp->buffer, str->buffer + start, length);
-	temp->buffer[length] = '\0';
-	temp->status = MS_AVAILABLE;
-	temp->len = length;
-	temp->cap = length + 1;
-	return temp;
+	return pkgMS(ms->buffer + start, length);
 }
 
-mutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, size_t length) {
+// enable
+jc_MutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, size_t length) {
 	if (!ch)return jcms_newFrom(NULL);
 	if (ch[0] == '\0' || !length)return jcms_newFrom("");
 
 	size_t len = strlen(ch);
 	if (start >= len) {
-		mutableString temp = jcms_newFrom("");
-		if (temp && temp->status == MS_AVAILABLE)temp->status = MS_INVALIDSTART;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_START;
 		return temp;
 	}
 
@@ -666,229 +825,96 @@ mutableString jcms_subInLengthFrontWithCh(const char* const ch, size_t start, si
 	return pkgMS(ch + start, length);
 }
 
-mutableString subMSInLengthBackFrom(const char* const ch, size_t end, size_t length) {
-	if (!ch)return newMSFrom(NULL);
-	if (ch[0] == '\0' || !length)return newMSFrom("");
+// enable
+jc_MutableString jcms_subInLengthBackWithCh(const char* const ch, size_t end, size_t length) {
+	if (!ch)return jcms_newFrom(NULL);
+	if (ch[0] == '\0' || !length)return jcms_newFrom("");
 
 	size_t len = strlen(ch);
 	if (end >= len) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_INVALIDEND;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_END;
 		return temp;
 	}
 
 	if ((ptrdiff_t)end + 1 - (ptrdiff_t)length < 0)length = end + 1;
 
-	mutableString temp = (mutableString)malloc(sizeof(mutableString));
-	if (!temp)return NULL;
-	temp->buffer = (char*)malloc(length + 1);
-	if (!temp->buffer) {
-		temp->status = MS_NULLBUFFER;
-		temp->len = 0;
-		temp->cap = 0;
-		return temp;
-	}
-	memcpy(temp->buffer, ch + (end - length + 1), length);
-	temp->buffer[length] = '\0';
-	temp->status = MS_AVAILABLE;
-	temp->len = length;
-	temp->cap = length + 1;
-	return temp;
+	return pkgMS(ch + (end - length + 1), length);
 }
 
-mutableString subMSInRangeFrom(const char* const ch, size_t start, size_t end) {
-	if (!ch)return newMSFrom(NULL);
-	if (ch[0] == '\0' || start == end)return newMSFrom("");
+// enable
+jc_MutableString jcms_subInRangeWithCh(const char* const ch, size_t start, size_t end) {
+	if (!ch)return jcms_newFrom(NULL);
+	if (ch[0] == '\0' || start == end)return jcms_newFrom("");
 
 	if (start > end) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_INVALIDIDX;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INVALID_INDEX;
 		return temp;
 	}
 
 	size_t len = strlen(ch);
 	if (start >= len || end > len) {
-		mutableString temp = newMSFrom("");
-		if (temp)temp->status = MS_IDXOUTBOUNDS;
+		jc_MutableString temp = jcms_newFrom("");
+		if (temp && temp->status == JC_MS__AVAILABLE)temp->status = JC_MS__INDEX_OUT_OF_BOUNDS;
 		return temp;
 	}
 
 	size_t length = end - start;
-	mutableString temp = (mutableString)malloc(sizeof(mutableString));
-	if (!temp)return NULL;
-	temp->buffer = (char*)malloc(length + 1);
-	if (!temp->buffer) {
-		temp->status = MS_NULLBUFFER;
-		temp->len = 0;
-		temp->cap = 0;
-		return temp;
-	}
-	memcpy(temp->buffer, ch + start, length);
-	temp->buffer[length] = '\0';
-	temp->status = MS_AVAILABLE;
-	temp->len = length;
-	temp->cap = length + 1;
-	return temp;
+	return pkgMS(ch + start, length);
 }
 
-int replaceMSFirst(mutableString* str, const char* const target, const mutableString* const replacement) {
-	if (!str)return MS_NULL;
-	if (!replacement)return MS_INVALIDREPLACEMENT;
-	return replaceMSFirstFrom(str, target, replacement->buffer);
+int jcms_replaceFirstWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement) {
+	if (!ms)return JC_MS__NULL;
+	if (ms->status != JC_MS__AVAILABLE)return ms->status;
+	if (!target)return JC_MS__NULL_TARGET;
+	if (!replacement || !replacement->buffer)return JC_MS__INVALID_REPLACEMENT;
+	return replaceFirstCore(ms, target, replacement->buffer);
 }
 
-int replaceMSFirstFrom(mutableString* str, const char* const target, const char* const replacement) {
-	if (!str)return MS_NULL;
+int jcms_replaceFirstWithCh(JC_MutableString* ms, const char* const target, const char* const replacement) {
+	if (!ms)return JC_MS__NULL;
+	if (ms->status != JC_MS__AVAILABLE)return ms->status;
+	if (!target)return JC_MS__NULL_TARGET;
+	if (!replacement)return JC_MS__INVALID_REPLACEMENT;
 
-	if (!str->buffer)return MS_NULLBUFFER;
-	if (!target)return MS_NULLTARGET;
-	if (!replacement)return MS_INVALIDREPLACEMENT;
-
-	if (str->buffer[0] == '\0' && target[0] == '\0')return setMSContent(str, replacement);
-	if (str->buffer[0] == '\0')return MS_NOTARGETMATCHED;
-	if (target[0] == '\0')return appendMSFrom(str, replacement);
-
-	char* indexChar = strstr(str->buffer, target);
-	if (!indexChar)return MS_NOTARGETMATCHED;
-
-	size_t index = (size_t)(indexChar - str->buffer);
-	size_t targetLen = strlen(target);
-	size_t replaceLen = strlen(replacement);
-	size_t strLen = getMSLength(str);
-
-	if (targetLen == replaceLen) {
-		memmove(str->buffer + index, replacement, replaceLen);
-		return MS_SUCCESSFULOP;
-	}
-
-	size_t preLen = index;
-	size_t sufLen = strLen - preLen - targetLen;
-	size_t newLen = preLen + replaceLen + sufLen;
-	size_t needed = newLen + 1;
-
-	if (str->cap < needed) {
-		char* newBuffer = (char*)realloc(str->buffer, needed);
-		if (!newBuffer)return MS_FAILEDTOREALLOC;
-		str->buffer = newBuffer;
-		str->cap = needed;
-	}
-
-	memmove(str->buffer + index + replaceLen, str->buffer + index + targetLen, sufLen + 1);
-	memcpy(str->buffer + index, replacement, replaceLen);
-
-	str->len = newLen;
-	return MS_SUCCESSFULOP;
+	return replaceFirstCore(ms, target, replacement);
 }
 
-int replaceMSAll(mutableString* str, const char* const target, const mutableString* const replacement) {
-	if (!str)return MS_NULL;
-	if (!replacement)return MS_INVALIDREPLACEMENT;
-	return replaceMSAllFrom(str, target, replacement->buffer);
+int jcms_replaceAllWithInst(JC_MutableString* ms, const char* const target, const JC_MutableString* const replacement) {
+	if (!ms) return JC_MS__NULL;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!target) return JC_MS__NULL_TARGET;
+	if (!replacement || !replacement->buffer) return JC_MS__INVALID_REPLACEMENT;
+	return replaceAllCore(ms, target, replacement->buffer);
 }
 
-int replaceMSAllFrom(mutableString* str, const char* const target, const char* const replacement) {
-	if (!str)return MS_NULL;
+int jcms_replaceAllWithCh(JC_MutableString* ms, const char* const target, const char* const replacement) {
+	if (!ms) return JC_MS__NULL;
+	if (ms->status != JC_MS__AVAILABLE) return ms->status;
+	if (!target) return JC_MS__NULL_TARGET;
+	if (!replacement) return JC_MS__INVALID_REPLACEMENT;
 
-	if (!str->buffer)return MS_NULLBUFFER;
-	if (!target)return MS_NULLTARGET;
-	if (!replacement)return MS_INVALIDREPLACEMENT;
-
-	if (str->buffer[0] == '\0' && target[0] == '\0')return setMSContent(str, replacement);
-	if (str->buffer[0] == '\0')return MS_NOTARGETMATCHED;
-	if (target[0] == '\0')return appendMSFrom(str, replacement);
-
-	size_t strLen = str->len;
-	size_t targetLen = strlen(target);
-	size_t replaceLen = strlen(replacement);
-
-	// 第一遍：扫描所有匹配位置
-	size_t capacity = 16;
-	size_t* positions = (size_t*)malloc(capacity * sizeof(size_t));
-	if (!positions)return MS_FAILEDTOALLOC;
-
-	size_t count = 0;
-	size_t scan = 0;
-	while (scan + targetLen <= strLen) {
-		if (memcmp(str->buffer + scan, target, targetLen) == 0) {
-			if (count == capacity) {
-				capacity *= 2;
-				size_t* newPositions = (size_t*)realloc(positions, capacity * sizeof(size_t));
-				if (!newPositions) {
-					free(positions);
-					return MS_FAILEDTOREALLOC;
-				}
-				positions = newPositions;
-			}
-			positions[count++] = scan;
-			scan += targetLen;
-		}
-		else {
-			scan++;
-		}
-	}
-
-	if (count == 0) {
-		free(positions);
-		return MS_NOTARGETMATCHED;
-	}
-
-	// 计算最终长度
-	size_t newLen;
-	if (replaceLen >= targetLen) {
-		newLen = strLen + count * (replaceLen - targetLen);
-	}
-	else {
-		newLen = strLen - count * (targetLen - replaceLen);
-	}
-
-	// 需要时一次扩容到位
-	if (newLen + 1 > str->cap) {
-		char* newBuffer = (char*)realloc(str->buffer, newLen + 1);
-		if (!newBuffer) {
-			free(positions);
-			return MS_FAILEDTOREALLOC;
-		}
-		str->buffer = newBuffer;
-		str->cap = newLen + 1;
-	}
-
-	// 从后往前替换
-	size_t currentLen = strLen;
-	for (size_t k = count; k > 0; k--) {
-		size_t pos = positions[k - 1];
-		size_t suffixStart = pos + targetLen;
-		size_t suffixLen = currentLen - suffixStart;
-
-		// 先移后缀，再写 replacement
-		memmove(str->buffer + pos + replaceLen,
-			str->buffer + suffixStart,
-			suffixLen + 1);
-		memcpy(str->buffer + pos, replacement, replaceLen);
-
-		if (replaceLen >= targetLen) {
-			currentLen += replaceLen - targetLen;
-		}
-		else {
-			currentLen -= targetLen - replaceLen;
-		}
-	}
-
-	free(positions);
-	str->len = newLen;
-	str->buffer[newLen] = '\0';
-	return MS_SUCCESSFULOP;
+	return replaceAllCore(ms, target, replacement);
 }
 
-bool MSStartWith(const mutableString* const str, const char* const prefix) {
-	if (!str || !str->buffer)return false;
+bool jcms_startWithCh(const JC_MutableString* const ms, const char* const prefix) {
+	if (!ms || !ms->buffer)return false;
 
 	if (!prefix || prefix[0] == '\0')return true;
 
-	size_t strLen = getMSLength(str);
+	size_t strLen = ms->len;
 	size_t preLen = strlen(prefix);
 	if (strLen < preLen)return false;
 
-	return strncmp(str->buffer, prefix, preLen) == 0;
+	return strncmp(ms->buffer, prefix, preLen) == 0;
+}
+
+bool jcms_startWithInst(const JC_MutableString* const ms, const JC_MutableString* const prefix) {
+	if (!ms || !ms->buffer)return false;
+	if (!prefix || !prefix->buffer || !prefix->len)return true;
+	if (ms->len < prefix->len)return false;
+	return strncmp(ms->buffer, prefix->buffer, prefix->len) == 0;
 }
 
 bool MSEndWith(const mutableString* const str, const char* const suffix) {

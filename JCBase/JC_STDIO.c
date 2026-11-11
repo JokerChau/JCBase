@@ -1,19 +1,19 @@
-#include "JC_Scanner.h"
-#include "structures.h"
-#include "StringSrc.h"
+#include "JC_STDIO.h"
+#include "JC_StringStructures.h"
+#include "JC_StringSrc.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-string nextLine() {
-	string str = (string)malloc(sizeof(String));
+jc_String nextLine() {
+	jc_String str = (jc_String)malloc(sizeof(JC_String));
 	if (!str) {
 		return NULL;
 	}
 
 	str->buffer = (char*)calloc(INITIAL_STRING_SIZE, sizeof(char));
 	if (!str->buffer) {
-		str->status = STR_NULLBUFFER;
+		str->status = JC_STR__NULL_BUFFER;
 		str->buffer = NULL;
 		str->cachedLen = 0;
 		return str;
@@ -28,7 +28,7 @@ string nextLine() {
 			if (capacity > SIZE_MAX / GROWTH) {
 				free(str->buffer);
 				str->buffer = NULL;
-				str->status = STR_FAILEDTOREALLOC;
+				str->status = JC_STR__REALLOCATION_FAILED;
 				str->cachedLen = 0;
 				return str;
 			}
@@ -37,7 +37,7 @@ string nextLine() {
 			if (!newBuffer) {
 				free(str->buffer);
 				str->buffer = NULL;
-				str->status = STR_FAILEDTOREALLOC;
+				str->status = JC_STR__REALLOCATION_FAILED;
 				str->cachedLen = 0;
 				return str;
 			}
@@ -49,7 +49,7 @@ string nextLine() {
 
 	str->buffer[len] = '\0';
 
-	str->status = STR_AVAILABLE;
+	str->status = JC_STR__AVAILABLE;
 	str->cachedLen = len;
 
 	return str;

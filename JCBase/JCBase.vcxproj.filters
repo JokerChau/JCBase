@@ -33,7 +33,7 @@
     <ClInclude Include="JC_MutableString.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="JC_Scanner.h">
+    <ClInclude Include="JC_STDIO.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="JC_String.h">
@@ -42,16 +42,16 @@
     <ClInclude Include="LinkedListSrc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MutableStringSrc.h">
+    <ClInclude Include="JC_MutableStringSrc.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="RegistryCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="StringSrc.h">
+    <ClInclude Include="JC_StringSrc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="structures.h">
+    <ClInclude Include="JC_StringStructures.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="wheel_ex.h">
@@ -71,17 +71,24 @@
     <ClCompile Include="LinkedList.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MutableString.c">
+    <ClCompile Include="JC_MutableString.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="RegistryCore.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Scanner.c">
+    <ClCompile Include="JC_STDIO.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="String.c">
+    <ClCompile Include="JC_String.c">
       <Filter>源文件</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ArrayList.md" />
+    <None Include="ArrayList_EN.md" />
+    <None Include="String.md" />
+    <None Include="String_EN.md" />
+    <None Include="StringSemantics.md" />
   </ItemGroup>
 </Project>
