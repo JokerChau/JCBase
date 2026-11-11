@@ -56,6 +56,9 @@
     <None Include="StringSemantics_EN.md" />
     <None Include="String_EN.md" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Classes.txt" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

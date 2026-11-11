@@ -7,16 +7,11 @@
 [点击查看ArrayList.md](ArrayList.md)[点击查看ArrayList_EN.md](ArrayList_EN.md)<br>
 [点击查看String.md](String.md)[点击查看String_EN.md](String_EN.md)<br>
 [点击查看MutableString.md](MutableString.md)[点击查看MutableString_EN.md](MutableString_EN.md)
+[点击查看ArrayList.md](ArrayList.md)[点击查看ArrayList_EN.md](ArrayList_EN.md)
 
 ---
 
 ## 功能特性
-**动态数组（ArrayList）**
-
-- 存储任意类型（通过 typeSize 指定）
-- 支持增删改查、插入、弹出、清空、缩容（shrinkToFit）
-- 动态扩容采用倍增策略（均摊 O(1) 插入）
-
 **链表（LinkedList）**
 
 - 带哨兵的循环双链表，存储任意类型（通过 typeSize 指定）
@@ -68,30 +63,6 @@
 ---
 
 ## 核心 API 概览
-
-### ArrayList 模块
-
-| 返回类型 | 函数 / 宏 | 说明 |
-|---|---|---|
-| `ArrayList*` | `newArrayList(pointer)` | 类型安全构造宏，展开为 `alCreate(sizeof(*(pointer)))` |
-| `ArrayList*` | `alCreate(size_t typeSize)` | 创建动态数组 |
-| `void` | `alDestroy(ArrayList* list)` | 销毁实例 |
-| `int` | `alGetStatus(const ArrayList* const list)` | 获取状态 |
-| `size_t` | `alGetCount(const ArrayList* const list)` | 获取元素数量 |
-| `size_t` | `alGetMaxCount(const ArrayList* const list)` | 获取当前容量 |
-| `int` | `alSetMaxCount(ArrayList* const list, size_t count)` | 手动设置容量 |
-| `int` | `alShrinkToFit(ArrayList* const list)` | 缩容到恰好容纳元素 |
-| `int` | `alGetAt(const ArrayList* const list, size_t index, void* ele)` | 获取指定位置元素 |
-| `int` | `alSetAt(ArrayList* const list, size_t index, const void* const content)` | 设置指定位置元素 |
-| `int` | `alPushBack(ArrayList* const list, const void* const content)` | 尾部插入 |
-| `int` | `alPushFront(ArrayList* const list, const void* const content)` | 头部插入 |
-| `int` | `alInsertAt(ArrayList* const list, const void* const content, size_t index)` | 指定位置插入 |
-| `int` | `alPopBack(ArrayList* const list)` | 尾部弹出 |
-| `int` | `alPopFront(ArrayList* const list)` | 头部弹出 |
-| `int` | `alRemoveAt(ArrayList* const list, size_t index)` | 删除指定位置 |
-| `int` | `alClear(ArrayList* const list)` | 清空元素数量，不释放 buffer |
-| `const char*` | `alStatusToArray(int status)` | 状态码转描述 |
-
 ### LinkedList 模块
 
 | 返回类型 | 函数 / 宏 | 说明 |
@@ -181,36 +152,6 @@
 ---
 
 ## 使用示例
-### ArrayList 操作
-
-```c
-#include "JC_ArrayList.h"
-#include <stdio.h>
-
-int main() {
-    int dummy = 0;
-    ArrayList* list = newArrayList(&dummy);
-    // 展开成 alCreate(sizeof(int))
-
-    if (alGetStatus(list) != AVAILABLEAL) {
-        fprintf(stderr, "ArrayList creation failed\n");
-        return 1;
-    }
-
-    int val = 42;
-    alPushBack(list, &val);
-    val = 100;
-    alPushBack(list, &val);
-
-    int out;
-    alGetAt(list, 0, &out);
-    printf("First element: %d\n", out);
-
-    alDestroy(list);
-    return 0;
-}
-```
-
 ### LinkedList 操作
 
 ```c

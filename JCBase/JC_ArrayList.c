@@ -5,7 +5,10 @@
 #include <stdint.h>
 
 // enable
-static jc_ArrayList wrapAl(void* data, size_t count, size_t maxCount, size_t typeSize, int status) {
+// 接管 data
+static jc_ArrayList wrapAl(void* data, size_t count,
+	size_t maxCount, size_t typeSize,
+	int status, unsigned int flags) {
 	jc_ArrayList list = (jc_ArrayList)malloc(sizeof(JC_ArrayList));
 	if (!list)return NULL;
 	list->data = data;
@@ -13,47 +16,83 @@ static jc_ArrayList wrapAl(void* data, size_t count, size_t maxCount, size_t typ
 	list->maxCount = maxCount;
 	list->typeSize = typeSize;
 	list->status = status;
+	list->flags = flags;
 	return list;
 }
 
-static int alRealloc(ArrayList* list) {
-	if (list->alCount >= list->alMaxCount) {
+static int alGrow(JC_ArrayList* list) {
+	if (list->count >= list->maxCount) {
 		// 设置临时容量，如果最大容量为0则设为4，且每次加4
 		size_t newCap;
 		size_t newMaxCap = SIZE_MAX / list->typeSize;
-		if (list->alMaxCount == 0) {
-			if (newMaxCap >= 4)newCap = 4;
-			else newCap = newMaxCap;
+		if (list->maxCount == 0) {
+			newCap = (newMaxCap >= 8) ? 8 : newMaxCap;
 		}
-		else if (list->alMaxCount >= newMaxCap) {
-			// 已经到达理论最大容量，无法再涨
-			return AL_REALLOCSIZEOUTBOUNDS;
+		else if (list->maxCount >= newMaxCap) {
+			return JC_AL__REALLOC_SIZE_MAX;
 		}
-		else if (list->alMaxCount > newMaxCap / 2) {
-			// 翻倍会超过 maxCapacity，直接拉到 maxCapacity
+		else if (list->maxCount > newMaxCap / 2) {
 			newCap = newMaxCap;
 		}
+		else if (list->maxCount >= 1000) {
+			// 1.5 倍扩容
+			newCap = list->maxCount + (list->maxCount >> 1);
+			if (newCap > newMaxCap) newCap = newMaxCap; // 防溢出
+		}
 		else {
-			newCap = list->alMaxCount * 2;
+			// 2 倍扩容
+			newCap = list->maxCount * 2;
 		}
 		// 重分配一个数据指针，大小为临时容量*类型大小
 		void* newData = realloc(list->data, newCap * list->typeSize);
-		if (!newData)return AL_REALLOCFAIL;
+		if (!newData)return JC_AL__REALLOCATION_FAILED;
 		// 分配成功，更新数据
 		list->data = newData;
-		list->alMaxCount = newCap;
-		return AL_SUCCESSFULOP;
+		list->maxCount = newCap;
+		return JC_AL__SUCCESSFUL_OP;
 	}
-	else return AL_SUCCESSFULOP;
+	return JC_AL__SUCCESSFUL_OP;
+}
+
+// 在 delete / pop 等减少元素的函数末尾调用
+static int alShrink(JC_ArrayList* list) {
+	// 1. 没达到触发条件 (即使用率 >= 25%)，不缩
+	if (list->maxCount <= 8) return JC_AL__SUCCESSFUL_OP; // 底线：不低于初始容量
+	if (list->count >= list->maxCount / 4) return JC_AL__SUCCESSFUL_OP;
+
+	// 2. 计算新容量（缩一半）
+	size_t newCap = list->maxCount / 2;
+	if (newCap < 8) newCap = 8; // 再次确保底线
+
+	// 3. realloc
+	void* newData = realloc(list->data, newCap * list->typeSize);
+	// ... (注意：realloc 缩容虽然很少失败，但还是要处理失败情况)
+
+	// 成功则更新
+	if (newData) { // 缩容有时在某些系统上可能返回 NULL 但原数据有效？标准库对缩容的处理可能有所不同
+		list->data = newData;
+		list->maxCount = newCap;
+	}
+	return JC_AL__SUCCESSFUL_OP;
 }
 
 // enable
-jc_ArrayList jcal_inner_new(size_t sizeType) {
+jc_ArrayList jcal_inner_new(size_t sizeType, unsigned int flags) {
 	int status = JC_AL__AVAILABLE;
 	if (!sizeType) {
 		status = JC_AL__INVALID_TYPE_SIZE;
 	}
-	return wrapAl(NULL, 0, 0, sizeType, status);
+	return wrapAl(NULL, 0, 0, sizeType, status, flags);
+}
+
+unsigned int jcal_getFlags(const jc_ArrayList list) {
+	if (!list) return 0;
+	return list->flags;
+}
+
+void jcal_setFlags(jc_ArrayList list, unsigned int flags) {
+	if (!list) return;
+	list->flags = flags;
 }
 
 // enable
@@ -83,6 +122,7 @@ int jcal_getStatus(const jc_ArrayList list) {
 }
 
 // enable
+// 往大设可以，往小不能小于元素数量
 int jcal_setMaxLength(jc_ArrayList list, size_t count) {
 	if (!list)return JC_AL__NULL;
 	if (list->status != JC_AL__AVAILABLE)return list->status;
@@ -110,6 +150,7 @@ int jcal_setMaxLength(jc_ArrayList list, size_t count) {
 }
 
 // enable
+// 只清空记录，不释放内存
 int jcal_clear(jc_ArrayList list) {
 	if (!list)return JC_AL__NULL;
 	if (list->status != JC_AL__AVAILABLE)return list->status;
@@ -118,9 +159,10 @@ int jcal_clear(jc_ArrayList list) {
 }
 
 // enable
+// 将内存降至刚好合适
 int jcal_shrinkToFit(const jc_ArrayList list) {
 	if (!list)return JC_AL__NULL;
-	if (list->data != JC_AL__AVAILABLE)return list->status;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
 
 	if (list->count == list->maxCount)return JC_AL__SUCCESSFUL_OP;
 
@@ -140,143 +182,120 @@ int jcal_shrinkToFit(const jc_ArrayList list) {
 	return JC_AL__SUCCESSFUL_OP;
 }
 
-int alGetAt(const ArrayList* const list, size_t index, void* ele) {
-	if (!list)return AL_NULL;
-	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
-	if(!ele)return AL_NULLELEMENT;
-	
-	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
+// enable
+// 预分配容量，如果 capacity 比当前 maxCount 小，则不执行任何操作
+int jcal_reserve(jc_ArrayList list, size_t capacity) {
+	if (!list) return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE) return list->status;
+
+	// 如果请求的容量比当前容量小或相等，直接返回成功（不做任何操作）
+	if (capacity <= list->maxCount) return JC_AL__SUCCESSFUL_OP;
+
+	// 边界检查：防止乘法溢出
+	if (capacity > SIZE_MAX / list->typeSize) return JC_AL__COUNT_TOO_LARGE;
+
+	void* newData = realloc(list->data, capacity * list->typeSize);
+	if (!newData) return JC_AL__REALLOCATION_FAILED;
+
+	list->data = newData;
+	list->maxCount = capacity;
+
+	return JC_AL__SUCCESSFUL_OP;
+}
+
+// enable
+int jcal_getAt(const JC_ArrayList* const list, size_t index, void* ele) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!ele)return JC_AL__NULL_RECEIVER;
+	if (index >= list->count)return JC_AL__INDEX_OUT_OF_BOUNDS;
 
 	char* tempData = (char*)list->data + index * list->typeSize;
 	memcpy(ele, tempData, list->typeSize);
-	
-	return AL_SUCCESSFULOP;
+
+	return JC_AL__SUCCESSFUL_OP;
 }
 
-int alSetAt(ArrayList* const list, size_t index, const void* const content) {
-	if (!list)return AL_NULL;
-	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
-	if (!content)return AL_NULLELEMENT;
-
-	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
+int jcal_setAt(JC_ArrayList* const list, size_t index, const void* const content) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!content)return JC_AL__NULL_CONTENT;
+	if (index >= list->count)return JC_AL__INDEX_OUT_OF_BOUNDS;
 
 	memcpy((char*)list->data + index * list->typeSize, content, list->typeSize);
 
-	return AL_SUCCESSFULOP;
+	return JC_AL__SUCCESSFUL_OP;
 }
 
-// 从后面补上单个元素
-int alPushBack(ArrayList* const list, const void* const content) {
-	if (!list)return AL_NULL;
-	return alInsertAt(list, content, list->alCount);
+int jcal_pushBack(JC_ArrayList* const list, const void* const content) {
+	if (!list)return JC_AL__NULL;
+	return jcal_insertAt(list, content, list->count);
 }
 
-int alPushFront(ArrayList* const list, const void* const content) {
-	return alInsertAt(list, content, 0);
+int jcal_pushFront(JC_ArrayList* const list, const void* const content) {
+	if (!list)return JC_AL__NULL;
+	return jcal_insertAt(list, content, 0);
 }
 
-int alInsertAt(ArrayList* const list, const void* const content, size_t index) {
-	if (!list)return AL_NULL;
-	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
-	if (!content)return AL_NULLELEMENT;
+int jcal_insertAt(JC_ArrayList* const list, const void* const content, size_t index) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!content)return JC_AL__NULL_CONTENT;
+	if (index > list->count)return JC_AL__INDEX_OUT_OF_BOUNDS;
 
-	if (index > list->alCount)return AL_IDXOUTBOUNDS;
+	int tempStatus = alGrow(list);
+	if (tempStatus != JC_AL__SUCCESSFUL_OP)return tempStatus;
 
-	int tempStatus = alRealloc(list);
-	if (tempStatus != AL_SUCCESSFULOP)return tempStatus;
-
-	if (index == list->alCount) {
-		char* dest = (char*)list->data + list->alCount * list->typeSize;
+	if (index == list->count) {
+		char* dest = (char*)list->data + list->count * list->typeSize;
 		memcpy(dest, content, list->typeSize);
 	}
 	else {
 		char* dest = (char*)list->data + list->typeSize * (index + 1);
 		char* src = (char*)list->data + list->typeSize * index;
-		size_t n = (list->alCount - index) * list->typeSize;
+		size_t n = (list->count - index) * list->typeSize;
 		memmove(dest, src, n);
-
 		memcpy((char*)list->data + list->typeSize * index, content, list->typeSize);
 	}
-	list->alCount++;
-
-	return AL_SUCCESSFULOP;
+	list->count++;
+	return JC_AL__SUCCESSFUL_OP;
 }
 
-int alPopBack(ArrayList* const list) {
-	if (!list) return AL_NULL;
-	if (list->status != AL_AVAILABLE) return AL_WRONGSTATUS;
-	if (list->alCount == 0)return AL_ALREADYEMPTY;
-	return alRemoveAt(list, list->alCount - 1);
+int jcal_popBack(JC_ArrayList* const list) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!list->count)return JC_AL__ALREADY_EMPTY;
+	return jcal_removeAt(list, list->count - 1);
 }
 
-int alPopFront(ArrayList* const list) {
-	if (!list) return AL_NULL;
-	if (list->status != AL_AVAILABLE) return AL_WRONGSTATUS;
-	if (list->alCount == 0)return AL_ALREADYEMPTY;
-	return alRemoveAt(list, 0);
+int jcal_popFront(JC_ArrayList* const list) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!list->count)return JC_AL__ALREADY_EMPTY;
+	return jcal_removeAt(list, 0);
 }
 
-int alRemoveAt(ArrayList* const list, size_t index) {
-	if (!list)return AL_NULL;
-	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
-	if (list->alCount == 0) return AL_ALREADYEMPTY;
-	if (index >= list->alCount)return AL_IDXOUTBOUNDS;
+int jcal_removeAt(JC_ArrayList* const list, size_t index) {
+	if (!list)return JC_AL__NULL;
+	if (list->status != JC_AL__AVAILABLE)return list->status;
+	if (!list->count)return JC_AL__ALREADY_EMPTY;
+	if (index >= list->count)return JC_AL__INDEX_OUT_OF_BOUNDS;
 
-	if (index < list->alCount - 1) {
+	if (index < list->count - 1) {
 		char* dest = (char*)list->data + list->typeSize * index;
-		char* src=(char*)list->data + list->typeSize * (index + 1);
-		size_t n = (list->alCount - index - 1) * list->typeSize;
+		char* src = (char*)list->data + list->typeSize * (index + 1);
+		size_t n = (list->count - index - 1) * list->typeSize;
 		memmove(dest, src, n);
 	}
-	list->alCount--;
+	list->count--;
 
-	return AL_SUCCESSFULOP;
+	if (list->flags & JC_AL_FLAG_AUTO_SHRINK)alShrink(list);
+
+	return JC_AL__SUCCESSFUL_OP;
 }
 
-int alClear(ArrayList* const list) {
-	if (!list)return AL_NULL;
-	if (list->status != AL_AVAILABLE)return AL_WRONGSTATUS;
-	list->alCount = 0;
-	return AL_SUCCESSFULOP;
-}
-
-const char* alStatusToCharArray(int status) {
+const char* jcal_statusToCharArray(int status) {
 	switch (status) {
-	case AL_NULL: {
-		return "null ArrayList*";
-	}
-	case AL_AVAILABLE: {
-		return "available ArrayList*";
-	}
-	case AL_INVALIDTYPESIZE: {
-		return "invalid type size of data";
-	}
-	case AL_ALREADYEMPTY: {
-		return "ArrayList* has already been empty";
-	}
-
-	case AL_SUCCESSFULOP: {
-		return "successful operation";
-	}
-	case AL_WRONGSTATUS: {
-		return "ArrayList* status in error";
-	}
-	case AL_REALLOCFAIL: {
-		return "fail to realloc";
-	}
-
-	case AL_NULLELEMENT: {
-		return "null element";
-	}
-	case AL_IDXOUTBOUNDS: {
-		return "index out of bounds";
-	}
-	case AL_CAPACITYLESSTHANMIN: {
-		return "setted capacity is less than the current capacity";
-	}
-	case AL_REALLOCSIZEOUTBOUNDS: {
-		return "the size is bigger than SIZE_MAX/max size of size_t";
-	}
 	default: {
 		return "unknown status";
 	}

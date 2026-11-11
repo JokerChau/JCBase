@@ -1,0 +1,137 @@
+String：
+JC_StringStructures.h
+
+1.String：
+JC_StringSrc.h
+JC_String.h
+JC_String.c
+String.md
+String_EN.md
+StringSemantics.md
+StringSemantics_EN.md
+
+2.MutableString：
+JC_MutableStringSrc.h
+JC_MutableString.h
+JC_MutableString.c
+MutableString.md
+MutableString_EN.md
+MutableStringSemantics.md
+MutableStringSemantics_EN.md
+
+
+ArrayList：
+JC_ArrayListStructures.h
+
+1.Arraylist：
+JC_ArrayListSrc.h
+JC_ArrayList.h
+JC_ArrayList.c
+ArrayList.md
+ArrayList_EN.md
+ArrayListSemantics.md
+ArrayListSemantics_EN.md
+
+
+Design of String:
+1. API rules of name: jcstr_<function name>/jcms_<function name>, the crazy branch should use name: jccstr_<function name>
+2. Part String:
+
+	typedef struct JC_String {
+		char* buffer;
+		int status;
+		size_t cachedLen;
+	}JC_String;
+
+	typedef JC_String* jc_String;
+ 
+3. Part MutableString:
+	
+	typedef struct JC_MutableString {
+ 		char* buffer;
+ 		int status;
+ 		size_t len;
+ 		size_t cap;
+ 	}JC_MutableString;
+ 
+	typedef JC_MutableString* jc_MutableString;
+ 
+4. Part crazy String:
+ 
+	typedef struct JC_crazyString {
+ 		char* buffer;
+ 		size_t len;
+ 		size_t cap;
+ 	}JC_crazyString;
+ 
+	typedef JC_crazyString* jc_czyString;
+
+5. Rules of naming status:
+
+		Take String as an example, the status of the String is defined as follows:
+		JC_STR__NULL = -2,					// NULL String实例
+		Take crazy String as an example, the status of the crazy String is defined as follows:
+		JC_CSTR__NULL = -2,					// NULL crazy String实例
+
+       JC_StringStatus as the name of JC_String
+
+6. About file name:
+		Take String as an example, the file name is JC_String.h, the source file name is JC_String.c, and the header file for the status efinition is JC_StringSrc.h.
+
+
+Design of ArrayList:
+1. API rules of name: jcal_<function name>, the crazy branch should use name: jccal_<function name>, the callback branch should use name: jclbkal_<function name>
+2. Part ArrayList: 
+ 
+	typedef struct JC_ArrayList {
+		void* data;				// 数据内容
+		size_t alCount;			// 当前数量
+		size_t alMaxCount;		// 最大容量
+		size_t typeSize;		// 类型大小
+		int status;				// 当前AL状态
+	} JC_ArrayList;
+ 
+	typedef JC_ArrayList jc_ArrayList;
+ 
+3. Part of callback ArrayList:
+ 
+	typedef struct JC_callbackArrayList JC_callbackArrayList;
+	typedef JC_callbackArrayList* jc_clbkArrayList;
+	typedef struct JC_callbackcore JC_callbackcore;
+ 
+	typedef struct JC_callbackcore {
+		jc_clbkArrayList (*jcclbkal_inner_clone)(const jc_clbkArrayList list);
+		jc_clbkArrayList (*jcclbkal_inner_delete)(jc_clbkArrayList list);
+	} JC_callbackcore;
+ 
+	typedef struct JC_callbackArrayList {
+		void* data;
+ 		size_t alCount;
+ 		size_t alMaxCount;
+ 		size_t typeSize;
+ 		int status;
+		JC_callbackcore callbackcore;
+	} JC_callbackArrayList;
+ 
+4. Part of crazy ArrayList:
+		
+	typedef struct JC_crazyArrayList {
+ 		void* data;
+ 		size_t alCount;
+ 		size_t alMaxCount;
+ 		size_t typeSize;
+	} JC_crazyArrayList;
+ 
+	typedef JC_crazyArrayList* jc_czyArrayList;
+ 
+5. Rules of naming status:
+	
+		Take ArrayList as an example, the status of the ArrayList is defined as follows:
+		JC_AL__NULL = -2,					// NULL AL实例
+		Take crazy ArrayList as an example, the status of the crazy ArrayList is defined as follows:
+		JC_CAl__NULL = -2,					// NULL CAL实例
+     
+	JC_ArrayListStatus as the name of JC_ArrayList
+	
+	6. About file name:
+		Take ArrayList as an example, the file name is JC_ArrayList.h, the source file name is JC_ArrayList.c, and the header file for the status definition is JC_ArrayListSrc.h.
