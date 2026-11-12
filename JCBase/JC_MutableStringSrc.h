@@ -17,6 +17,8 @@ typedef enum JC_MutableStringStatus {
 	JC_MS__LENGTH_OUT_OF_BOUNDS,			// 长度越界
 	JC_MS__WITHOUT_CHAR,					// 没有通过 ch 找到索引
 	JC_MS__NO_TARGET_MATCHED,				// target 未匹配到
+	JC_MS__READ_ERROR,						// 读取操作失败
+	JC_MS__EOF,								// 读取到尽头
 
 	JC_MS__INDEX_OUT_OF_BOUNDS,				// 索引越界
 	JC_MS__INVALID_CHARACTER_FOR_CHANGE,	// 替换字符无效
@@ -30,6 +32,7 @@ typedef enum JC_MutableStringStatus {
 	JC_MS__NULL_FOLLOWER,					// append 的 src 为 NULL
 	JC_MS__NULL_FOLLOWER_BUFFER,			// append 的 src 的 buffer 为 NULL
 	JC_MS__NULL_RECEIVER,					// 接受器为 NULL
+	JC_MS__INVALID_FILE_POINTER,			// 文件指针无效
 
 	JC_MS__NULL_INT,
 	JC_MS__OVERFLOW_INT,

@@ -11,6 +11,8 @@
 #include <float.h>
 #include "JC_String.h"
 
+// reserve、shrinkToFit、insert、deleteRange、clear
+
 // 直接接管各种属性
 static jc_MutableString wrapString(char* buffer, int status, size_t len, size_t cap) {
 	jc_MutableString str = (jc_MutableString)malloc(sizeof(JC_MutableString));
@@ -407,6 +409,8 @@ const char* jcms_statusToCharArray(const int status) {
 	case JC_MS__LENGTH_OUT_OF_BOUNDS:       return "length out of bounds";
 	case JC_MS__WITHOUT_CHAR:               return "there is no char you want here";
 	case JC_MS__NO_TARGET_MATCHED:          return "target not matched";
+	case JC_MS__READ_ERROR:					return "got fileread error";
+	case JC_MS__EOF:						return "met end of file";
 
 		// 参数错误
 	case JC_MS__INVALID_START:              return "invalid start index";
@@ -424,6 +428,7 @@ const char* jcms_statusToCharArray(const int status) {
 	case JC_MS__NULL_FOLLOWER:              return "follower instance is null";
 	case JC_MS__NULL_FOLLOWER_BUFFER:       return "follower buffer is null";
 	case JC_MS__NULL_RECEIVER:              return "receiver is null";
+	case JC_MS__INVALID_FILE_POINTER:		return "invalid file pointer";
 
 		// 数字解析：输出指针为 NULL
 	case JC_MS__NULL_INT:                   return "null int pointer";
@@ -924,7 +929,7 @@ bool jcms_equalsWithInst(const JC_MutableString* const ms, const JC_MutableStrin
 	if (!ms->len && !obj->len)return true;
 	if (!ms->len || !obj->len)return false;
 
-	return strcmp(obj->buffer, obj->buffer) == 0;
+	return strcmp(ms->buffer, obj->buffer) == 0;
 }
 
 bool jcms_equalsIgnoreCaseWithInst(const JC_MutableString* const ms, const JC_MutableString* const obj, JC_SpaceMode mode) {
@@ -944,8 +949,8 @@ bool jcms_equalsWithCh(const JC_MutableString* const ms, const char* const obj) 
 	if (!ms)return false;
 	if (!ms->buffer && !obj)return true;
 	if (!ms->buffer || !obj)return false;
-	if (!ms->buffer[0] == '\0' && obj[0] == '\0')return true;
-	if (!ms->buffer[0] == '\0' || obj[0] == '\0')return false;
+	if (ms->buffer[0] == '\0' && obj[0] == '\0')return true;
+	if (ms->buffer[0] == '\0' || obj[0] == '\0')return false;
 	return strcmp(ms->buffer, obj) == 0;
 }
 
@@ -1060,7 +1065,7 @@ int jcms_compareIgnoreCaseWithCh(const JC_MutableString* const ms, const char* c
 char* jcms_toCharArray(const JC_MutableString* const ms) {
 	if (!ms || !ms->buffer)return NULL;
 	if (ms->buffer[0] == '\0') {
-		char* temp = (char*)malloc(1, sizeof(char));
+		char* temp = (char*)malloc(sizeof(char));
 		if (!temp)return NULL;
 		temp[0] = '\0';
 		return temp;

@@ -20,6 +20,10 @@ typedef enum JC_StringStatus {
     JC_STR__COMBINATION_FAILED,             // 拼接时分配失败
     JC_STR__LEN_OUT_OF_TYPE_MAX,            // 长度溢出 size_t
 
+    // 文件IO错误
+    JC_STR__READ_ERROR,                      // 读取出错
+    JC_STR__EOF,                             // EOF
+
     // 参数错误
     JC_STR__NULL_CHAR,                // char* 输出参数为 NULL
     JC_STR__NULL_ARRAY,                     // 数组输出参数为 NULL
@@ -34,6 +38,7 @@ typedef enum JC_StringStatus {
     JC_STR__INVALID_IDX,                    // 区间 start > end
     JC_STR__IDX_OUT_BOUNDS,                 // 下标越界
     JC_STR__WITHOUT_CH,                     // 未找到目标字符/子串
+    JC_STR__INVALID_FILE_POINTER,           // 文件指针无效
 
     // 数字解析：输出指针为 NULL
     JC_STR__NULL_INT,

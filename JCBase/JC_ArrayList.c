@@ -69,7 +69,7 @@ static int alShrink(JC_ArrayList* list) {
 	// ... (注意：realloc 缩容虽然很少失败，但还是要处理失败情况)
 
 	// 成功则更新
-	if (newData) { // 缩容有时在某些系统上可能返回 NULL 但原数据有效？标准库对缩容的处理可能有所不同
+	if (newData) {
 		list->data = newData;
 		list->maxCount = newCap;
 	}
@@ -296,8 +296,24 @@ int jcal_removeAt(JC_ArrayList* const list, size_t index) {
 
 const char* jcal_statusToCharArray(int status) {
 	switch (status) {
-	default: {
-		return "unknown status";
-	}
+		// 实例状态
+	case JC_AL__NULL:                   return "null ArrayList";
+	case JC_AL__AVAILABLE:              return "available ArrayList";
+	case JC_AL__INVALID_TYPE_SIZE:      return "invalid type size";
+	case JC_AL__ALREADY_EMPTY:          return "ArrayList already empty";
+
+		// 操作状态
+	case JC_AL__SUCCESSFUL_OP:          return "successful operation";
+	case JC_AL__REALLOCATION_FAILED:    return "failed to realloc";
+	case JC_AL__REALLOC_SIZE_MAX:       return "capacity reached SIZE_MAX / typeSize";
+
+		// 参数状态
+	case JC_AL__CAPACITY_LESS_THAN_MIN: return "capacity less than current count";
+	case JC_AL__COUNT_TOO_LARGE:        return "count too large (count * typeSize overflows)";
+	case JC_AL__NULL_RECEIVER:          return "receiver is null";
+	case JC_AL__INDEX_OUT_OF_BOUNDS:    return "index out of bounds";
+	case JC_AL__NULL_CONTENT:           return "content is null";
+
+	default:                            return "unknown status";
 	}
 }

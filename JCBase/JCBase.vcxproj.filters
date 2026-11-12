@@ -15,37 +15,43 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="JC_ArrayListSrc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="HashMapSrc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="JC_ArrayList.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="JC_HashMap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="JC_LinkedList.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="JC_MutableString.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="JC_STDIO.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="JC_String.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="wheel_ex.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JC_MutableString.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JC_HashMap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HashMapSrc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="RegistryCore.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JC_LinkedList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="LinkedListSrc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JC_ArrayListSrc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JC_ArrayListStructures.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="JC_MutableStringSrc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RegistryCore.h">
+    <ClInclude Include="JC_IO.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="JC_StringSrc.h">
@@ -54,30 +60,27 @@
     <ClInclude Include="JC_StringStructures.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="wheel_ex.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="JC_ArrayListStructures.h">
+    <ClInclude Include="JC_IOSrc.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="JC_ArrayList.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="HashMap.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="LinkedList.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="JC_MutableString.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="RegistryCore.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="JC_STDIO.c">
+    <ClCompile Include="LinkedList.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="JC_ArrayList.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="JC_MutableString.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="JC_IO.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="JC_String.c">
@@ -85,16 +88,42 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ArrayList.md" />
-    <None Include="ArrayList_EN.md" />
-    <None Include="String.md" />
-    <None Include="String_EN.md" />
-    <None Include="StringSemantics.md" />
-    <None Include="MutableString.md" />
-    <None Include="MutableString_EN.md" />
-    <None Include="StringSemantics_EN.md" />
-    <None Include="MutableStringSemantics.md" />
-    <None Include="MutableStringSemantics_EN.md" />
+    <None Include="ArrayList.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="ArrayList_EN.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="MutableString.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="MutableString_EN.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="MutableStringSemantics.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="MutableStringSemantics_EN.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="README.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="String.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="String_EN.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="StringSemantics.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="StringSemantics_EN.md">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="UPDATE.md">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Classes.txt">

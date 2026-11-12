@@ -47,8 +47,6 @@ wheels int jcal_getAt(const JC_ArrayList* const list, size_t index, void* ele);
 
 wheels int jcal_setAt(JC_ArrayList* const list, size_t index, const void* const content);
 
-wheels size_t jcal_indexOf(const JC_ArrayList* const list, void* content, size_t* receiver);
-
 wheels int jcal_pushBack(JC_ArrayList* const list, const void* const content);
 
 wheels int jcal_pushFront(JC_ArrayList* const list, const void* const content);

@@ -62,7 +62,11 @@ static jc_String subLenFrontCore(char* base, size_t startIdx, size_t givenLen, s
 		char* tempBuf = (char*)malloc(1);
 		if (!tempBuf) return wrapString(tempBuf, JC_STR__NULL_BUFFER, 0);   // 分配失败才是 NULL buffer
 		tempBuf[0] = '\0';
-		return wrapString(tempBuf, JC_STR__INVALID_START, 0);
+		jc_String temp = wrapString(tempBuf, JC_STR__INVALID_START, 0);
+		if (!temp) {
+			free(tempBuf);
+		}
+		return temp;
 	}
 
 	if (givenLen > realLen - startIdx)givenLen = realLen - startIdx;
@@ -76,7 +80,11 @@ static jc_String subLenBackCore(char* base, size_t endIdx, size_t givenLen, size
 		char* tempBuf = (char*)malloc(1);
 		if (!tempBuf)return wrapString(tempBuf, JC_STR__NULL_BUFFER, 0);
 		tempBuf[0] = '\0';
-		return wrapString(tempBuf, JC_STR__INVALID_END, 0);
+		jc_String temp = wrapString(tempBuf, JC_STR__INVALID_END, 0);
+		if (!temp) {
+			free(tempBuf);
+		}
+		return temp;
 	}
 
 	if (endIdx + 1 < givenLen)givenLen = endIdx + 1;
@@ -90,13 +98,21 @@ static jc_String subRangeCore(char* str, size_t start, size_t end, size_t realLe
 		char* tempBuf = (char*)malloc(1);
 		if (!tempBuf)return wrapString(tempBuf, JC_STR__NULL_BUFFER, 0);
 		tempBuf[0] = '\0';
-		return wrapString(tempBuf, JC_STR__INVALID_IDX, 0);
+		jc_String temp = wrapString(tempBuf, JC_STR__INVALID_IDX, 0);
+		if (!temp) {
+			free(tempBuf);
+		}
+		return temp;
 	}
 	if (start >= realLen || end > realLen) {
 		char* tempBuf = (char*)malloc(1);
 		if (!tempBuf)return wrapString(tempBuf, JC_STR__NULL_BUFFER, 0);
 		tempBuf[0] = '\0';
-		return wrapString(tempBuf, JC_STR__IDX_OUT_BOUNDS, 0);
+		jc_String temp = wrapString(tempBuf, JC_STR__INVALID_IDX, 0);
+		if (!temp) {
+			free(tempBuf);
+		}
+		return temp;
 	}
 
 	size_t length = end - start;
@@ -353,6 +369,9 @@ const char* jcstr_statusToCharArray(const int status) {
 	case JC_STR__COMBINATION_FAILED:        return "failed to combine";
 	case JC_STR__LEN_OUT_OF_TYPE_MAX:       return "length out of max size of some type";
 
+	case JC_STR__READ_ERROR:				return "got fileread error";
+	case JC_STR__EOF:						return "met end of file";
+
 		// 参数错误
 	case JC_STR__NULL_CHAR:                 return "null char pointer";
 	case JC_STR__NULL_ARRAY:                return "null string array";
@@ -367,6 +386,7 @@ const char* jcstr_statusToCharArray(const int status) {
 	case JC_STR__INVALID_IDX:               return "invalid index";
 	case JC_STR__IDX_OUT_BOUNDS:            return "index out of bounds";
 	case JC_STR__WITHOUT_CH:                return "there is no char you want here";
+	case JC_STR__INVALID_FILE_POINTER:		return "invalid file pointer";
 
 		// 数字解析：输出指针为 NULL
 	case JC_STR__NULL_INT:                  return "null int pointer";
