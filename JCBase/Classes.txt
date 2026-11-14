@@ -29,8 +29,17 @@ JC_ArrayList.h
 JC_ArrayList.c
 ArrayList.md
 ArrayList_EN.md
-ArrayListSemantics.md
-ArrayListSemantics_EN.md
+
+
+LinkedList：
+JC_LinkedListStructures.h
+
+1.LinkedList：
+JC_LinkedListSrc.h
+JC_ArrayList.h
+JC_ArrayList.c
+LinkedList.md
+LinkedList_EN.md
 
 
 IO：
@@ -141,3 +150,34 @@ Design of ArrayList:
 	
 	6. About file name:
 		Take ArrayList as an example, the file name is JC_ArrayList.h, the source file name is JC_ArrayList.c, and the header file for the status definition is JC_ArrayListSrc.h.
+
+
+Design of LinkedList:
+1. API rules of name: jcll_<function name>, the crazy branch should use name: jccll_<function name>, the callback branch should use name: jcclbkll_<function name>
+2. Part LinkedList: 
+ 
+	typedef struct JC_LinkedList {
+		LinkedListNode* header;
+		size_t count;
+		size_t typeSize;
+		int status;
+	} JC_LinkedList;
+
+	typedef struct JC_LinkedListNode {
+		LinkedListNode* prior, * next;
+		void* data;
+	} JC_LinkedListNode;
+ 
+	typedef JC_LinkedList* jc_LinkedList;
+ 
+3. Rules of naming status:
+	
+		Take LinkedList as an example, the status of the LinkedList is defined as follows:
+		JC_LL__NULL = -2,					// NULL LL实例
+		Take crazy LinkedList as an example, the status of the crazy LinkedList is defined as follows:
+		JC_CLL__NULL = -2,					// NULL CLL实例
+     
+	JC_LinkedListStatus as the name of JC_LinkedList
+	
+4. About file name:
+		Take LinkedList as an example, the file name is JC_LinkedList.h, the source file name is JC_LinkedList.c, and the header file for the status definition is JC_LinkedListSrc.h.

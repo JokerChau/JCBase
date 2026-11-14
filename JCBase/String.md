@@ -226,7 +226,7 @@
 > int jcstr_compareWithCh(const JC_String* const str, const char* const ch, int* result)
 ```text
 此为库对外接口，返回 int 类型的状态码，按字典序比较字符串实例与 C 字符串 ch，将比较结果写入 result
-注意：result 为 NULL 返回 JC_STR__NULL_RECEIVER；str 为 NULL 返回 JC_STR__NULL；str 缓冲区与 ch 同时为 NULL 时返回 JC_STR__SUCCESSFUL_OP（*result 不被修改）；仅一方为 NULL 返回 JC_STR__NULL_BUFFER；其余按 strcmp 结果写入 *result 并返回 JC_STR__SUCCESSFUL_OP
+注意：result 为 NULL 返回 JC_STR__NULL_RECEIVER；str 为 NULL 返回 JC_STR__NULL；str 缓冲区与 ch 同时为 NULL 时返回 JC_STR__SUCCESSFUL_OP，*result修改为0；仅一方为 NULL 返回 JC_STR__NULL_BUFFER；其余按 strcmp 结果写入 *result 并返回 JC_STR__SUCCESSFUL_OP
 ```
 > int jcstr_compareIgnoreCaseWithCh(const JC_String* const str, const char* const ch, int* result, JC_SpaceMode mode)
 ```text

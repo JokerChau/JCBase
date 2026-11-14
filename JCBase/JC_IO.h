@@ -2,6 +2,7 @@
 
 #include "wheel_ex.h"
 #include <stdio.h>
+#include "JC_IOSrc.h"
 
 typedef struct JC_String JC_String;
 typedef JC_String* jc_String;

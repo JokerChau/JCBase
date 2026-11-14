@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <float.h>
+#include <math.h>
 #include "JC_MutableString.h"
 
 // 默认构造器，返回一个内容为\0的实例
@@ -108,7 +109,7 @@ static jc_String subRangeCore(char* str, size_t start, size_t end, size_t realLe
 		char* tempBuf = (char*)malloc(1);
 		if (!tempBuf)return wrapString(tempBuf, JC_STR__NULL_BUFFER, 0);
 		tempBuf[0] = '\0';
-		jc_String temp = wrapString(tempBuf, JC_STR__INVALID_IDX, 0);
+		jc_String temp = wrapString(tempBuf, JC_STR__IDX_OUT_BOUNDS, 0);
 		if (!temp) {
 			free(tempBuf);
 		}
@@ -937,7 +938,11 @@ char* jcstr_toCharArray(const JC_String* const str) {
 
 	size_t len = str->cachedLen;
 	char* content = (char*)malloc(len + 1);
-	return content ? memcpy(content, str->buffer, len) : NULL;
+	if (content) {
+		memcpy(content, str->buffer, len);
+		content[len] = '\0';
+	}
+	return content;
 }
 
 int jcstr_toInt(const JC_String* const str, int* result, JC_SpaceMode mode) {
@@ -997,6 +1002,10 @@ int jcstr_toFloat(const JC_String* const str, float* result, JC_SpaceMode mode) 
 		if (s == JC_STR__BLANK)     return JC_STR__BLANK;
 		if (s == JC_STR__NOT_DOUBLE) return JC_STR__NOT_FLOAT;
 		return JC_STR__OVERFLOW_FLOAT;
+	}
+	if (isinf(v) || isnan(v)) {
+		*result = (float)v;
+		return JC_STR__SUCCESSFUL_OP;
 	}
 	if (v > FLT_MAX || v < -FLT_MAX) return JC_STR__OVERFLOW_FLOAT;   // ← float 范围检查
 	*result = (float)v;

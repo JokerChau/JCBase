@@ -2,7 +2,6 @@
 #include "JC_StringStructures.h"
 #include "JC_StringSrc.h"
 #include "JC_MutableStringSrc.h"
-#include "JC_IOSrc.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -113,7 +112,7 @@ jc_MutableString jcio_readLineMutableString(FILE* fp) {
         jc_MutableString temp = (jc_MutableString)malloc(sizeof(JC_MutableString));
         if (!temp) return NULL;
         temp->buffer = NULL;
-        temp->status = JC_STR__INVALID_FILE_POINTER;
+        temp->status = JC_MS__INVALID_FILE_POINTER;
         temp->len = 0;
         temp->cap = 0;
         return temp;

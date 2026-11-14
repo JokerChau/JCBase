@@ -1,5 +1,7 @@
 #pragma once
 
+#define VERSION "26.8-β"
+
 #if defined(_WIN32) || defined(_WIN64)
 
 #ifdef JCBASE_EXPORTS

@@ -13,15 +13,9 @@ typedef JC_ArrayList* jc_ArrayList;
 wheels jc_ArrayList jcal_inner_new(size_t sizeType, unsigned int flags);
 
 // recommended to use the macro jcal_newOf(type) to create an ArrayList instance, which is equivalent to calling jcal_inner_new(sizeof(type))
-#define jcal_newOf(type) \
-    (_Static_assert(sizeof(type) > 0, "size must > 0"), \
-     _Static_assert(!_Generic((type*)0, void*: 1, default: 0), "Error: type cannot be void!"), \
-     jcal_inner_new(sizeof(type), 0))
+#define jcal_newOf(type) jcal_inner_new(sizeof(type), 0)
 
-#define jcal_newOfWithFlags(type, flags) \
-    (_Static_assert(sizeof(type) > 0, "size must > 0"), \
-     _Static_assert(!_Generic((type*)0, void*: 1, default: 0), "Error: type cannot be void!"), \
-     jcal_inner_new(sizeof(type), flags))
+#define jcal_newOfWithFlags(type, flags) jcal_inner_new(sizeof(type), flags)
 
 wheels unsigned int jcal_getFlags(const jc_ArrayList list);
 
