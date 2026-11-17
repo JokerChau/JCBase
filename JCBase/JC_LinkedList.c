@@ -1,29 +1,59 @@
 #include "JC_LinkedList.h"
+#include "JC_LinkedListStructures.h"
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct LinkedList {
-	LinkedListNode* header;
-	size_t count;
-	size_t typeSize;
-	int status;
-}LinkedList;
-
-typedef struct LinkedListNode {
-	LinkedListNode* prior, * next;
-	void* data;
-}LinkedListNode;
-
-#define IS_AVAILABLE 100
-
-static int isAvailable(linkedList list) {
-	if (!list)return LL_NULL;
-	if (!list->header)return LL_NULLHEADER;
-	return IS_AVAILABLE;
+// 生成一个自指结点，接管内容
+static jc_LinkedListNode generateNode(const void* const content) {
+	jc_LinkedListNode node = (jc_LinkedListNode)malloc(sizeof(JC_LinkedListNode));
+	if (!node)return node;
+	node->data = content;
+	node->next = node;
+	node->prior = node;
+	return node;
 }
 
-static linkedListNode toTheIndex(linkedList list, size_t index) {
-	linkedListNode p = list->header;
+// 生成一个自指结点，拷贝内容，要注意node可能为NULL，但实际上会通过status知道node是否为NULL，若content为NULL，行为与generateNode一致
+static jc_LinkedListNode generateCopyNode(const void* const content, size_t len, int* status) {
+	jc_LinkedListNode node = (jc_LinkedListNode)malloc(sizeof(JC_LinkedListNode));
+	if (!node) {
+		*status = JC_LL__ALLOCATION_FAILED;
+		return node;
+	}
+
+	// node自指
+	node->prior = node;
+	node->next = node;
+
+	if (!content) {
+		node->data = content;
+		*status = JC_LL__SUCCESSFUL_OP;
+		return node;
+	}
+
+	// 为内容申请内存，成功与否都更新状态
+	void* ctnt = malloc(len);
+	if (!ctnt) {
+		*status = JC_LL__ALLOCATION_FAILED;
+	}
+	else {
+		*status = JC_LL__SUCCESSFUL_OP;
+		memcpy(ctnt, content, len);
+	}
+	node->data = ctnt;
+	return node;
+}
+
+// 判断list是否可用，返回状态码
+static JC_LinkedListStatus isAvailable(jc_LinkedList list) {
+	if (!list)return JC_LL__NULL;
+	if (list->status != JC_LL__AVAILABLE)return list->status;
+	return JC_LL__AVAILABLE;
+}
+
+// 自动判断哪边更靠近index并返回index指向结点的指针，若index == list->count，则返回头结点
+static jc_LinkedListNode toIndexNode(jc_LinkedList list, size_t index) {
+	jc_LinkedListNode p = list->header;
 	// 将p指向index所在结点
 	if (index < list->count / 2) {
 		for (size_t i = 0; i <= index; i++) {
@@ -38,282 +68,227 @@ static linkedListNode toTheIndex(linkedList list, size_t index) {
 	return p;
 }
 
-static void removeTheNode(linkedListNode node) {
-	if (node->data)free(node->data);
+// 摘链，不释放
+static void getDownNode(jc_LinkedListNode node) {
 	node->prior->next = node->next;
 	node->next->prior = node->prior;
+}
+
+// 删除所给结点，会释放该结点
+static void deleteNode(jc_LinkedListNode node) {
+	if (node->data)free(node->data);
+	getDownNode(node);
 	free(node);
 }
 
-static void getDownNode(linkedListNode node) {
-	node->prior->next = node->next;
-	node->next->prior = node->prior;
-}
-
-static void pushBefore(linkedListNode node, linkedListNode where) {
+// 在某个结点前推入结点
+static void pushBefore(jc_LinkedListNode node, jc_LinkedListNode where) {
 	node->prior = where->prior;
 	node->next = where;
 	where->prior->next = node;
 	where->prior = node;
 }
 
-static void pushAfter(linkedListNode node, linkedListNode where) {
+// 在某个结点后推入结点
+static void pushAfter(jc_LinkedListNode node, jc_LinkedListNode where) {
 	node->next = where->next;
 	node->prior = where;
 	where->next->prior = node;
 	where->next = node;
 }
 
-linkedList llCreate(size_t typeSize) {
-	linkedList temp = (linkedList)malloc(sizeof(LinkedList));
+// 自行保证list和index可用，index至少不能大于list->count，允许NULL data，不允许NULL node
+static int insertCore(jc_LinkedList list, const void* const content, size_t index) {
+	// 1. 找到索引所指向的结点
+	jc_LinkedListNode node = toIndexNode(list, index);
+	int status = JC_LL__SUCCESSFUL_OP;
+	// 2. 生成一个自指结点
+	jc_LinkedListNode tempNode = generateCopyNode(content, list->typeSize, &status); // status会接受操作的状态
+	// 拒绝NULL入链
+	if (status != JC_LL__SUCCESSFUL_OP) {
+		free(tempNode);
+		return status;
+	}
+	// 3. 将结点前插
+	pushBefore(tempNode, node);
+	list->count++;
+	return JC_LL__SUCCESSFUL_OP;
+}
+
+static int removeCore(jc_LinkedList list, size_t index) {
+	// 1. 找到索引指向的结点
+	jc_LinkedListNode node = toIndexNode(list, index);
+	// 2. 摘链释放
+	deleteNode(node);
+	list->count--;
+	return JC_LL__SUCCESSFUL_OP;
+}
+
+jc_LinkedList jcll_inner_new(size_t typeSize) {
+	jc_LinkedList temp = (jc_LinkedList)malloc(sizeof(JC_LinkedList));
 	if (!temp)return NULL;
 	temp->count = 0;
 	temp->typeSize = typeSize;
 	temp->header = NULL;
 	if (!typeSize) {
-		temp->status = LL_INVALIDTYPESIZE;
+		temp->status = JC_LL__INVALID_TYPE_SIZE;
 		return temp;
 	}
-	linkedListNode tempNode = (linkedListNode)malloc(sizeof(LinkedListNode));
+
+	jc_LinkedListNode tempNode = generateNode(NULL);
 	if (!tempNode) {
-		temp->status = LL_NULLHEADER;
+		temp->status = JC_LL__NULL_HEADER;
 		return temp;
 	}
 	temp->header = tempNode;
-	temp->status = LL_AVAILABLE;
-	tempNode->prior = tempNode; 
-	tempNode->next = tempNode;
-	tempNode->data = NULL;
+	temp->status = JC_LL__AVAILABLE;
 	return temp;
 }
 
-int llDestroy(linkedList list) {
-	if (!list)return LL_SUCCESSFULOP;
+void jcll_delete(jc_LinkedList list) {
+	if (!list)return;
 	if (list->header) {
-		// 临时指针指向头节点
-		linkedListNode p = list->header->next;
+		jc_LinkedListNode p = list->header->next;
 		while (p != list->header) {
 			if (p->data)free(p->data);
-			linkedListNode q = p;
+			jc_LinkedListNode q = p;
 			p = p->next;
 			free(q);
 		}
 		free(list->header);
 	}
 	free(list);
-	return LL_SUCCESSFULOP;
 }
 
-int llClear(linkedList list) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	// 指向第一个数据节点
-	linkedListNode p = list->header->next;
+size_t jcll_getLength(const JC_LinkedList* const list) {
+	if (!list)return 0;
+	return list->count;
+}
+
+int jcll_getStatus(const JC_LinkedList* const list) {
+	if (!list)return JC_LL__NULL;
+	return list->status;
+}
+
+int jcll_clear(jc_LinkedList list) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+
+	jc_LinkedListNode p = list->header->next;
 	while (p != list->header) {
 		if (p->data)free(p->data);
-		linkedListNode q = p;
+		jc_LinkedListNode q = p;
 		p = p->next;
 		free(q);
 	}
 	list->count = 0;
 	list->header->prior = list->header;
 	list->header->next = list->header;
-	return LL_SUCCESSFULOP;
+	return JC_LL__SUCCESSFUL_OP;
 }
 
-
-int llGetStatus(const LinkedList* const list) {
-	if (!list)return LL_NULL;
-	return list->status;
-}
-
-size_t llGetCount(const LinkedList* const list) {
-	if (!list)return 0;
-	return list->count;
-}
-
-const char* llStatusToCharArray(int status) {
+const char* jcll_statusToCharArray(int status) {
 	switch (status) {
-	case LL_NULL: {
-		return "linkedList instance is NULL";
-	}
-	case LL_AVAILABLE: {
-		return "linkedList instance is available";
-	}
-	case LL_NULLHEADER: {
-		return "header node is NULL";
-	}
-	case LL_HEADERDELETING: {
-		return "invalid operation: header node is deleting";
-	}
-	case LL_NULLNODE: {
-		return "node is NULL";
-	}
-	case LL_NULLNEWNODE: {
-		return "failed to alloc new node";
-	}
-	case LL_NULLDATA: {
-		return "data of the node is NULL";
-	}
-	case LL_INVALIDTYPESIZE: {
-		return "unusable type size";
-	}
-	case LL_ALREADYEMPTY: {
-		return "this instance has already been empty";
-	}
-	case LL_SAMELL: {
-		return "the same linkedList";
-	}
+	case JC_LL__NULL:                       return "null list";
+	case JC_LL__AVAILABLE:                  return "available list";
+	case JC_LL__INVALID_TYPE_SIZE:          return "invalid type size";
+	case JC_LL__NULL_HEADER:                return "null header of this list";
+	case JC_LL__ALREADY_EMPTY:				return "empty list";
 
-	case LL_NULLCONTENT: {
-		return "content is NULL";
-	}
-	case LL_INDEXOUTOFBOUNDS: {
-		return "index out of bounds";
-	}
-	case LL_NULLRECEIVER: {
-		return "receiver is NULL";
-	}
-	case LL_EMPTYRANGE: {
-		return "empty range";
-	}
+	case JC_LL__SUCCESSFUL_OP:              return "successful operation";
+	case JC_LL__ALLOCATION_FAILED:          return "memory allocation failed";
 
-	case LL_SUCCESSFULOP: {
-		return "successful operation";
-	}
-	default: {
-		return "Unknown status";
-	}
+	case JC_LL__INDEX_OUT_OF_BOUNDS:        return "index is out of bounds";
+	case JC_LL__NULL_RECEIVER:				return "null receiver";
+
+	default:                                return "Unknown status";
 	}
 }
 
+int jcll_insertAt(jc_LinkedList list, const void* const content, size_t index) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (index > list->count)return JC_LL__INDEX_OUT_OF_BOUNDS;
 
-int llPushBack(linkedList list, const void* content) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!content)return LL_NULLCONTENT;
-	linkedListNode temp = (linkedListNode)malloc(sizeof(LinkedListNode));
-	if (!temp)return LL_NULLNEWNODE;
-	temp->data = malloc(list->typeSize);
-	if (!temp->data) {
-		free(temp);
-		return LL_NULLDATA;
+	return insertCore(list, content, index);
+}
+
+int jcll_pushBack(jc_LinkedList list, const void* const content) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+
+	return insertCore(list, content, list->count);
+}
+
+int jcll_pushFront(jc_LinkedList list, const void* const content) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	
+	return insertCore(list, content, 0);
+}
+
+int jcll_removeAt(jc_LinkedList list, size_t index) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (!list->count)return JC_LL__ALREADY_EMPTY;
+	if (index >= list->count)return JC_LL__INDEX_OUT_OF_BOUNDS;
+
+	return removeCore(list, index);
+}
+
+int jcll_popBack(jc_LinkedList list) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (!list->count)return JC_LL__ALREADY_EMPTY;
+
+	return removeCore(list, list->count - 1);
+}
+
+int jcll_popFront(jc_LinkedList list) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (!list->count)return JC_LL__ALREADY_EMPTY;
+
+	return removeCore(list, 0);
+}
+
+int jcll_getContentAt(const JC_LinkedList* const list, size_t index, void* outContent) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (!list->count)return JC_LL__ALREADY_EMPTY;
+	if (index >= list->count)return JC_LL__INDEX_OUT_OF_BOUNDS;
+	if (!outContent)return JC_LL__NULL_RECEIVER;
+
+	jc_LinkedListNode temp = toIndexNode(list, index);
+
+	if (!temp->data)memset(outContent, 0, list->typeSize); // 把接收器的内存全清零，代表取到了一个空值
+	else memcpy(outContent, temp->data, list->typeSize); // 正常有数据的情况
+	return JC_LL__SUCCESSFUL_OP;
+}
+
+int jcll_setContentAt(jc_LinkedList list, size_t index, const void* const content) {
+	JC_LinkedListStatus ts = isAvailable(list);
+	if (ts != JC_LL__AVAILABLE)return ts;
+	if (!list->count)return JC_LL__ALREADY_EMPTY;
+	if (index >= list->count)return JC_LL__INDEX_OUT_OF_BOUNDS;
+
+	jc_LinkedListNode temp = toIndexNode(list, index);
+	if (!content) {
+		free(temp->data);
+		temp->data = NULL;
 	}
-	memcpy(temp->data, content, list->typeSize);
-
-	pushBefore(temp, list->header);
-	list->count++;
-
-	return LL_SUCCESSFULOP;
-}
-
-int llPushFront(linkedList list, const void* content) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!content)return LL_NULLCONTENT;
-	linkedListNode temp = (linkedListNode)malloc(sizeof(LinkedListNode));
-	if (!temp)return LL_NULLNEWNODE;
-	temp->data = malloc(list->typeSize);
-	if (!temp->data) {
-		free(temp);
-		return LL_NULLDATA;
+	else {
+		if (!temp->data) {
+			temp->data = malloc(list->typeSize);
+			if (!temp->data)return JC_LL__ALLOCATION_FAILED;
+		}
+		memcpy(temp->data, content, list->typeSize);
 	}
-	memcpy(temp->data, content, list->typeSize);
 
-	pushAfter(temp, list->header);
-	list->count++;
-
-	return LL_SUCCESSFULOP;
+	return JC_LL__SUCCESSFUL_OP;
 }
 
-int llInsertAt(linkedList list, const void* content, size_t index) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!content)return LL_NULLCONTENT;
-	if (index > list->count)return LL_INDEXOUTOFBOUNDS;
-
-	if (index == list->count)return llPushBack(list, content);
-	if (!index)return llPushFront(list, content);
-
-	linkedListNode temp = (linkedListNode)malloc(sizeof(LinkedListNode));
-	if (!temp)return LL_NULLNEWNODE;
-	temp->data = malloc(list->typeSize);
-	if (!temp->data) {
-		free(temp);
-		return LL_NULLDATA;
-	}
-	memcpy(temp->data, content, list->typeSize);
-
-	linkedListNode p = toTheIndex(list, index);
-
-	pushBefore(temp, p);
-	list->count++;
-
-	return LL_SUCCESSFULOP;
-}
-
-int llPopBack(linkedList list) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!list->count)return LL_ALREADYEMPTY;
-	linkedListNode temp = list->header->prior;
-	removeTheNode(temp);
-	list->count--;
-	return LL_SUCCESSFULOP;
-}
-
-int llPopFront(linkedList list) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!list->count)return LL_ALREADYEMPTY;
-	linkedListNode temp = list->header->next;
-	removeTheNode(temp);
-	list->count--;
-	return LL_SUCCESSFULOP;
-}
-
-int llRemoveAt(linkedList list, size_t index) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!list->count)return LL_ALREADYEMPTY;
-	if (index >= list->count)return LL_INDEXOUTOFBOUNDS;
-
-	if (index == list->count - 1)return llPopBack(list);
-	if (!index)return llPopFront(list);
-
-	linkedListNode p = toTheIndex(list, index);
-	removeTheNode(p);
-	list->count--;
-	return LL_SUCCESSFULOP;
-}
-
-
-// 按索引从ll实例获取内容
-int llGetContentAt(const LinkedList* list, size_t index, void* out) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!list->count)return LL_ALREADYEMPTY;
-	if (index >= list->count)return LL_INDEXOUTOFBOUNDS;
-	if (!out)return LL_NULLRECEIVER;
-
-	linkedListNode temp = toTheIndex(list, index);
-	memcpy(out, temp->data, list->typeSize);
-	return LL_SUCCESSFULOP;
-}
-
-int llSetContentAt(linkedList list, size_t index, const void* content) {
-	int ava = isAvailable(list);
-	if (ava != IS_AVAILABLE)return ava;
-	if (!list->count)return LL_ALREADYEMPTY;
-	if (index >= list->count)return LL_INDEXOUTOFBOUNDS;
-	if (!content)return LL_NULLCONTENT;
-
-	linkedListNode temp = toTheIndex(list, index);
-	memcpy(temp->data, content, list->typeSize);
-	return LL_SUCCESSFULOP;
-}
-
-
+/*
 int llGetFrontNode(const linkedList list, linkedListNode* out) {
 	int ava = isAvailable(list);
 	if (ava != IS_AVAILABLE)return ava;
@@ -584,3 +559,4 @@ int llClearInRange(linkedList list, size_t start, size_t end) {
 	list->count -= end - start;
 	return LL_SUCCESSFULOP;
 }
+*/

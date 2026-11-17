@@ -2,43 +2,44 @@
 
 #include "wheel_ex.h"
 #include <stddef.h>
-#include "LinkedListSrc.h"
+#include "JC_LinkedListSrc.h"
 
-#define newLinkedList(pointer) llCreate(sizeof(*(pointer)))
+typedef struct JC_LinkedList JC_LinkedList;
+typedef JC_LinkedList* jc_LinkedList;
+typedef struct JC_LinkedListNode JC_LinkedListNode;
+typedef JC_LinkedListNode* jc_LinkedListNode;
 
-typedef struct LinkedList LinkedList;
-typedef LinkedList* linkedList;
-typedef struct LinkedListNode LinkedListNode;
-typedef LinkedListNode* linkedListNode;
+wheels jc_LinkedList jcll_inner_new(size_t typeSize);
 
-wheels linkedList llCreate(size_t typeSize);
+#define jcll_newOf(type) jcll_inner_new(sizeof(type))
 
-wheels int llDestroy(linkedList list);
+wheels void jcll_delete(jc_LinkedList list);
 
-wheels int llClear(linkedList list);
+wheels size_t jcll_getLength(const JC_LinkedList* const list);
 
-wheels int llGetStatus(const LinkedList* const list);
+wheels int jcll_getStatus(const JC_LinkedList* const list);
 
-wheels size_t llGetCount(const LinkedList* const list);
+wheels int jcll_clear(jc_LinkedList list);
 
-wheels const char* llStatusToCharArray(int status);
+wheels const char* jcll_statusToCharArray(int status);
 
-wheels int llPushBack(linkedList list, const void* content);
+wheels int jcll_insertAt(jc_LinkedList list, const void* const content, size_t index);
 
-wheels int llPushFront(linkedList list, const void* content);
+wheels int jcll_pushBack(jc_LinkedList list, const void* const content);
 
-wheels int llInsertAt(linkedList list, const void* content, size_t index);
+wheels int jcll_pushFront(jc_LinkedList list, const void* const content);
 
-wheels int llRemoveNode(linkedList list, linkedListNode node);
+wheels int jcll_removeAt(jc_LinkedList list, size_t index);
 
-wheels int llPopBack(linkedList list);
+wheels int jcll_popBack(jc_LinkedList list);
 
-wheels int llPopFront(linkedList list);
+wheels int jcll_popFront(jc_LinkedList list);
 
-wheels int llGetContentAt(const LinkedList* list, size_t index, void* out);
+wheels int jcll_getContentAt(const JC_LinkedList* const list, size_t index, void* outContent);
 
-wheels int llSetContentAt(linkedList list, size_t index, const void* content);
+wheels int jcll_setContentAt(jc_LinkedList list, size_t index, const void* const content);
 
+/*
 wheels int llGetFrontNode(const linkedList list, linkedListNode* out);
 
 wheels int llGetBackNode(const linkedList list, linkedListNode* out);
@@ -78,26 +79,9 @@ wheels int llSpliceAfter(linkedList hold, linkedListNode node, linkedList materi
 wheels int llSpliceAt(linkedList hold, size_t index, linkedList material);
 
 wheels int llClearInRange(linkedList list, size_t start, size_t end);
+*/
 
 /*
-// 生命周期
-linkedList llCreate(size_t typeSize);获得ll实例 Y
-int        llDestroy(linkedList list);销毁ll实例 Y
-int        llClear(linkedList list);清除ll实例中的所有数据节点 Y
-
-// 状态
-int         llGetStatus(const linkedList list);获取ll实例状态 Y
-size_t      llGetCount(const linkedList list);获取ll实例的元素数量 Y
-const char* llStatusToCharArray(int status);翻译实例状态 Y
-
-// 值操作（按位置）
-int llPushBack(linkedList list, const void* content);直接将内容加入 Y*3
-int llPushFront(linkedList list, const void* content);
-int llInsertAt(linkedList list, const void* content, size_t index);
-int llPopBack(linkedList list);直接将内容摘除 Y*3
-int llPopFront(linkedList list);
-int llRemoveAt(linkedList list, size_t index);
-
 // 值操作（按索引）
 int llGetContentAt(const linkedList list, size_t index, void* out);按索引从ll实例获取内容 Y
 int llSetContentAt(linkedList list, size_t index, const void* content);按索引对ll实例设置内容 Y
