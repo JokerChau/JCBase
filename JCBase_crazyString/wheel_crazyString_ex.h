@@ -1,0 +1,53 @@
+#pragma once
+
+#define VERSION "26.10-alpha"
+// 请勿据此作为版本切换根据
+
+/* 编译/链接模式：
+ *   JCBASE_STATIC  —— 编静态库、或静态链接静态库时定义
+ *   JCBASE_EXPORTS —— 编 DLL/.so 时定义
+ *   都不定义        —— 使用 DLL/.so 时（Windows 下展开为 dllimport）
+ */
+#if defined(JCBASE_crazySTRING_STATIC)
+#define wheels
+#elif defined(_WIN32) || defined(_WIN64)
+#ifdef JCBASE_crazySTRING_EXPORTS
+#define wheels __declspec(dllexport)
+#else
+#define wheels __declspec(dllimport)
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#ifdef JCBASE_EXPORTS
+#define wheels __attribute__((visibility("default")))
+#else
+#define wheels
+#endif
+#else
+#define wheels
+#endif
+
+/*
+* 如何使用：
+* 一、Visual Studio 2026（以下简称2026）
+* 1.在2026中创建C++ Dll项目
+* 2.删除项目模板中的所有头文件和C++文件
+* 3.将从GitHub上下载的代码粘贴到项目代码所在文件夹
+* 4.在2026中右键“头文件/源文件”点击添加已有项，选中粘贴过来的代码文件
+* 5.右键该项目，在“C/C++”中选中“预编译头”，选择“否”
+* 6.将生成解决方案模式调成“Release”
+* 7.按下“shift+ctrl+B”生成解决方案
+* 8.在你的项目中动态链接该库即可
+*/
+
+/*
+* How to use:
+* I. Visual Studio 2026 (hereinafter referred to as 2026)
+* 1. Create a C++ DLL project in 2026.
+* 2. Delete all header files and C++ files from the project template.
+* 3. Paste the code downloaded from GitHub into the project's source folder.
+* 4. In 2026, right-click "Header Files" / "Source Files", select "Add Existing Item", and choose the pasted code files.
+* 5. Right-click the project, go to "C/C++" -> "Precompiled Headers", and select "Not Using Precompiled Headers".
+* 6. Change the solution configuration to "Release".
+* 7. Press "Shift+Ctrl+B" to build the solution.
+* 8. Dynamically link this library in your project.
+*/

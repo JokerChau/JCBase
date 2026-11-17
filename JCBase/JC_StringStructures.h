@@ -43,8 +43,6 @@
 *
 *		Take String as an example, the status of the String is defined as follows:
 *		JC_STR__NULL = -2,					// NULL String实例
-*		Take crazy String as an example, the status of the crazy String is defined as follows:
-*		JC_CSTR__NULL = -2,					// NULL crazy String实例
 *
 *       JC_StringStatus as the name of JC_String
 *

@@ -22,6 +22,7 @@
     <ClInclude Include="JC_ArrayListSrc.h" />
     <ClInclude Include="JC_ArrayListStructures.h" />
     <ClInclude Include="JC_ArrayList.h" />
+    <ClInclude Include="JC_crazyString.h" />
     <ClInclude Include="JC_IO.h" />
     <ClInclude Include="JC_IOSrc.h" />
     <ClInclude Include="JC_LinkedList.h" />
@@ -36,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="JC_ArrayList.c" />
+    <ClCompile Include="JC_crazyString.c" />
     <ClCompile Include="JC_IO.c" />
     <ClCompile Include="JC_LinkedList.c" />
     <ClCompile Include="JC_MutableString.c" />

@@ -1,29 +1,29 @@
 #pragma once
 
-#define VERSION "26.8-β"
+#define VERSION "26.10-alpha"
+// 请勿据此作为版本切换根据
 
-#if defined(_WIN32) || defined(_WIN64)
-
+/* 编译/链接模式：
+ *   JCBASE_STATIC  —— 编静态库、或静态链接静态库时定义
+ *   JCBASE_EXPORTS —— 编 DLL/.so 时定义
+ *   都不定义        —— 使用 DLL/.so 时（Windows 下展开为 dllimport）
+ */
+#if defined(JCBASE_STATIC)
+#define wheels
+#elif defined(_WIN32) || defined(_WIN64)
 #ifdef JCBASE_EXPORTS
 #define wheels __declspec(dllexport)
 #else
 #define wheels __declspec(dllimport)
 #endif
-
-#else
-
-#if defined(__GNUC__) || defined(__clang__)
-
+#elif defined(__GNUC__) || defined(__clang__)
 #ifdef JCBASE_EXPORTS
 #define wheels __attribute__((visibility("default")))
 #else
 #define wheels
 #endif
-
 #else
 #define wheels
-#endif
-
 #endif
 
 /*

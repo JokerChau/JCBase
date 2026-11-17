@@ -57,6 +57,9 @@
     <ClInclude Include="JC_LinkedListStructures.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="JC_crazyString.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="JC_ArrayList.c">
@@ -72,6 +75,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="JC_IO.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="JC_crazyString.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
