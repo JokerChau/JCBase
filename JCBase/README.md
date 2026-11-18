@@ -12,6 +12,7 @@
 [点击查看MutableString.md](MutableString.md) [点击查看MutableString_EN.md](MutableString_EN.md)<br>
 [点击查看IO.md](IO.md) [点击查看IO_EN.md](IO_EN.md)<br>
 [点击查看LinkedList.md](LinkedList.md) [点击查看LinkedList_EN.md](LinkedList_EN.md)
+[点击查看crazyString.md](crazyString.md)[点击查看crazyString_EN.md](crazyString_EN.md)
 
 ---
 

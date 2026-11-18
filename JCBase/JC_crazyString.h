@@ -49,11 +49,14 @@ wheels jc_czyString jccstr_removeInRange(jc_czyString str, size_t from, size_t t
 // 在索引处添加一个字符
 wheels jc_czyString jccstr_insertAt(jc_czyString str, size_t index, char content);
 
+// 自索引处起，插入length长度的内容
+wheels jc_czyString jccstr_insertBytes(jc_czyString str, size_t index, const char* content, size_t length);
+
 // 直接设置内容
 wheels jc_czyString jccstr_setContent(jc_czyString str, const char* content, size_t length);
 
 // 为字符串预定空间
-wheels size_t jccstr_reserve(jc_czyString str, size_t wholeCapacity);
+wheels jc_czyString jccstr_reserve(jc_czyString str, size_t wholeCapacity);
 
 // 释放多余内存，注意，第一个\0后的内存都将释放！！！！！！！！
 wheels jc_czyString jccstr_shrinkToFit(jc_czyString str);
@@ -66,9 +69,6 @@ wheels jc_czyString jccstr_clone(jc_czyString str);
 
 // 追加 length 字节（遇 \0 截断）
 wheels jc_czyString jccstr_appendBytes(jc_czyString str, const char* content, size_t length);
-
-// 追加一个 C 字符串（strlen 决定长度）
-wheels jc_czyString jccstr_appendCStr(jc_czyString str, const char* content);
 
 // 把 other 的内容追加到 str 之后（允许 str == other 自拼接）
 wheels jc_czyString jccstr_append(jc_czyString str, jc_czyString other);

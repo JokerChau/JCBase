@@ -19,6 +19,14 @@ MutableString_EN.md
 MutableStringSemantics.md
 MutableStringSemantics_EN.md
 
+3.crazy String：
+JC_crazyString.h
+JC_crazyString.c
+crazyString.md
+crazyString_EN.md
+HTUcrazyString.md
+HTUcrazyString_EN.md
+
 
 ArrayList：
 JC_ArrayListStructures.h

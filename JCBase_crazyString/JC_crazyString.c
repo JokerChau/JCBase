@@ -21,20 +21,6 @@ static jc_czyString reallocate(jc_czyString str, size_t wholeCapacity) {
 	return str;
 }
 
-// 计算扩容后的容量：倍增，至少满足 need
-static size_t growCapacity(size_t cap, size_t need) {
-	size_t n = cap;
-	while (n < need) {
-		if (n > SIZE_MAX / 2) {   // 再翻倍会溢出，直接取 need
-			n = need;
-			break;
-		}
-		n *= 2;
-	}
-	return n;
-}
-
-
 // 创建一个空内容的实例
 jc_czyString jccstr_new(void) {
 	char* buffer = (char*)malloc(1);
@@ -59,7 +45,7 @@ jc_czyString jccstr_newWithSize(size_t capacity) {
 
 // 当length小于content实际内容长度时，实例记录的字符串内容较原内容将会截断
 jc_czyString jccstr_newFrom(const char* content, size_t length) {
-	if (length == SIZE_MAX)length = SIZE_MAX - 1;
+	if (length == SIZE_MAX)return NULL;
 	if (!content)return NULL;
 	char* buffer = (char*)malloc(length + 1);
 	if (!buffer)return NULL;
@@ -107,7 +93,7 @@ jc_czyString jccstr_changeAt(jc_czyString str, size_t index, char content) {
 }
 
 jc_czyString jccstr_changeFrom(jc_czyString str, size_t from, size_t length, const char* content) {
-	if (length > SIZE_MAX - from - 1) length = SIZE_MAX - from - 1;
+	if (length > SIZE_MAX - from - 1) return str;
 
 	if (from + length + 1 > str->cap) {
 		reallocate(str, from + length + 1);
@@ -163,6 +149,25 @@ jc_czyString jccstr_insertAt(jc_czyString str, size_t index, char content) {
 	return str;
 }
 
+jc_czyString jccstr_insertBytes(jc_czyString str, size_t index, const char* content, size_t length) {
+	if (!length)return str;
+	if (length > SIZE_MAX - str->len - 1)return str;
+
+	// 扩容
+	size_t need = str->len + length + 1;
+	if (need > str->cap) {
+		reallocate(str, need);
+		if (str->cap < need)return str;
+	}
+
+	// 迁移数据
+	memmove(str->buffer + index + length, str->buffer + index, str->len - index);
+	memmove(str->buffer + index, content, length);
+	str->len += length;
+	str->buffer[str->len] = '\0';
+	return str;
+}
+
 jc_czyString jccstr_setContent(jc_czyString str, const char* content, size_t length) {
 	if (length > SIZE_MAX - 1)length = SIZE_MAX - 1;
 	if (length >= str->cap) {
@@ -175,10 +180,10 @@ jc_czyString jccstr_setContent(jc_czyString str, const char* content, size_t len
 	return str;
 }
 
-size_t jccstr_reserve(jc_czyString str, size_t wholeCapacity) {
+jc_czyString jccstr_reserve(jc_czyString str, size_t wholeCapacity) {
 	// 新容量比旧容量小时默认不更改
 	if (str->cap < wholeCapacity) reallocate(str, wholeCapacity);
-	return str->cap;
+	return str;
 }
 
 jc_czyString jccstr_shrinkToFit(jc_czyString str) {
@@ -208,11 +213,11 @@ jc_czyString jccstr_clone(jc_czyString str) {
 jc_czyString jccstr_appendBytes(jc_czyString str, const char* content, size_t length) {
 	if (!length) return str;
 
+	if (length > SIZE_MAX - str->len - 1) return str; // 加法溢出，视为非法参数，原样返回
 	size_t need = str->len + length + 1;
-	if (need <= str->len) return str;          // 加法溢出，视为非法参数，原样返回
 
 	if (need > str->cap) {
-		jccstr_reserve(str, growCapacity(str->cap, need));
+		reallocate(str, need);
 		if (str->cap < need) return str;       // 扩容失败，原样返回
 	}
 
@@ -228,20 +233,16 @@ jc_czyString jccstr_appendBytes(jc_czyString str, const char* content, size_t le
 	return str;
 }
 
-jc_czyString jccstr_appendCStr(jc_czyString str, const char* content) {
-	return jccstr_appendBytes(str, content, strlen(content));
-}
-
 jc_czyString jccstr_append(jc_czyString str, jc_czyString other) {
 	if (!other->len) return str;
 
 	size_t oldLen = str->len;
 	size_t addLen = other->len;
+	if (oldLen > SIZE_MAX - addLen - 1)return str; // 加法溢出，视为非法参数
 	size_t need = oldLen + addLen + 1;
-	if (need <= oldLen) return str;            // 加法溢出，视为非法参数
 
 	if (need > str->cap) {
-		jccstr_reserve(str, growCapacity(str->cap, need));
+		jccstr_reserve(str, need);
 		if (str->cap < need) return str;       // 扩容失败，原样返回
 	}
 

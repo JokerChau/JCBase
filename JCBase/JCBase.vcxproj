@@ -46,6 +46,10 @@
   <ItemGroup>
     <None Include="ArrayList.md" />
     <None Include="ArrayList_EN.md" />
+    <None Include="crazyString.md" />
+    <None Include="crazyString_EN.md" />
+    <None Include="HTUcrazyString.md" />
+    <None Include="HTUcrazyString_EN.md" />
     <None Include="IO.md" />
     <None Include="IO_EN.md" />
     <None Include="LinkedList.md" />

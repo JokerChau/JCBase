@@ -112,3 +112,8 @@ wheels jc_czyString jccstr_append(jc_czyString str, jc_czyString other);
 wheels jc_czyString jccstr_concat(jc_czyString a, jc_czyString b);
 ```
 > 将crazyString拆出来了一个小包，若要单独使用crazyString，直接获取该小包相关内容即可
+
+## 版本26.11-α<br>
+###更新内容
+> 新增了jccstr_insertBytes接口，取消了jccstr_appendCStr接口
+> 新增了HTU示例文件和crazyString的README
