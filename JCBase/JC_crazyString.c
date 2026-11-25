@@ -86,6 +86,14 @@ size_t jccstr_getCapacity(jc_czyString str) {
 	return str->cap;
 }
 
+char* jccstr_charAt(jc_czyString str, size_t index) {
+	return str->buffer + index;
+}
+
+char jccstr_viewAt(jc_czyString str, size_t index) {
+	return str->buffer[index];
+}
+
 jc_czyString jccstr_changeAt(jc_czyString str, size_t index, char content) {
 	str->buffer[index] = content;
 	if (content == '\0')str->len = index;

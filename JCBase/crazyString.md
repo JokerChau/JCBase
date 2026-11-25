@@ -43,6 +43,14 @@
 此为库对外接口，返回 size_t 类型的容量大小（字节，含结尾 '\0'）
 注意：str 为 NULL 时返回 0；容量与内容长度无关，可存放的内容字符数为 cap - 1
 ```
+> char* jccstr_charAt(jc_czyString str, size_t index)
+```text
+此为库对外接口，返回 char*，指向 buffer 中索引对应位置
+```
+> char jccstr_viewAt(jc_czyString str, size_t index)
+```text
+此为库对外接口，返回 char，并不指向 buffer 内部
+```
 > jc_czyString jccstr_changeAt(jc_czyString str, size_t index, char content)
 ```text
 此为库对外接口，返回 jc_czyString 类型，将实例中下标为 index 的字符改为 content

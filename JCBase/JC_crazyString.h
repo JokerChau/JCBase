@@ -28,6 +28,14 @@ wheels size_t jccstr_getLength(jc_czyString str);
 // 获取容量大小，与\0无关，与char*实际占用内存有关
 wheels size_t jccstr_getCapacity(jc_czyString str);
 
+// 直接不通过view访问下标处内容，可修改
+wheels char* jccstr_charAt(jc_czyString str, size_t index);
+
+// 直接访问实例下标处内容，但只可读
+wheels char jccstr_viewAt(jc_czyString str, size_t index);
+
+
+
 // 修改某处内容，若传入\0为内容则和endAt同一行为
 wheels jc_czyString jccstr_changeAt(jc_czyString str, size_t index, char content);
 
@@ -55,6 +63,8 @@ wheels jc_czyString jccstr_insertBytes(jc_czyString str, size_t index, const cha
 // 直接设置内容
 wheels jc_czyString jccstr_setContent(jc_czyString str, const char* content, size_t length);
 
+
+
 // 为字符串预定空间
 wheels jc_czyString jccstr_reserve(jc_czyString str, size_t wholeCapacity);
 
@@ -66,6 +76,8 @@ wheels jc_czyString jccstr_reallocate(jc_czyString str, size_t capacity);
 
 // 克隆一份一样的字符串实例
 wheels jc_czyString jccstr_clone(jc_czyString str);
+
+
 
 // 追加 length 字节（遇 \0 截断）
 wheels jc_czyString jccstr_appendBytes(jc_czyString str, const char* content, size_t length);

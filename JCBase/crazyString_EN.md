@@ -43,6 +43,14 @@ Note: Returns 0 when str is NULL.
 This is a public library interface. It returns the capacity as size_t (in bytes, including the trailing '\0').
 Note: Returns 0 when str is NULL; capacity is unrelated to content length, and the number of content characters it can hold is cap - 1.
 ```
+> char* jccstr_charAt(jc_czyString str, size_t index)
+```text
+This is a public library interface. It returns char*, pointing at index in buffer.
+```
+> char jccstr_viewAt(jc_czyString str, size_t index)
+```text
+This is a public library interface. It returns content at index.
+```
 > jc_czyString jccstr_changeAt(jc_czyString str, size_t index, char content)
 ```text
 This is a public library interface. It returns jc_czyString and replaces the character at index with content.

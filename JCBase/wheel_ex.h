@@ -1,6 +1,6 @@
 #pragma once
 
-#define VERSION "26.11-alpha"
+#define VERSION "26.12-alpha"
 // 请勿据此作为版本切换根据
 
 /* 编译/链接模式：
